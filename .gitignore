@@ -1,0 +1,6 @@
+*~
+*swp
+*pyc
+notebooks/*checkpoint*
+__*
+notebooks/structure-dynamic.ipynb

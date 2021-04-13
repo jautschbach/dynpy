@@ -1,0 +1,45 @@
+Primary developers:
+Adam Philips
+Jochen Autschbach
+
+Publications utilizing this code:
+
+Philips, A.; Marchenko, A.; Truflandier, L. A.; Autschbach, J. Quadrupolar NMR relaxation
+from ab-initio molecular dynamics: Improved sampling and cluster models vs.
+periodic calculations. J. Chem. Theory Comput. 2017, 13, 4397–4409.
+DOI: 10.1021/acs.jctc.7b00584
+
+Marchenko, A.; Truflandier, L. A.; Autschbach, J. Uranyl carbonate complexes in aqueous 
+solution and their ligand NMR chemical shifts and 17O quadrupolar relaxation studied by 
+ab initio molecular dynamics. Inorg. Chem. 2017, 56, 7384-7396. DOI: 10.1021/acs.inorgchem.7b00396
+
+Philips, A.; Marchenko, A.; Ducati, L. C.; Autschbach, J. Quadrupolar 14N NMR Relaxation
+from Force-Field and Ab-Initio Molecular Dynamics in Different Solvents. J. Chem.
+Theory Comput. 2019, 15, 509–519. DOI: 10.1021/acs.jctc.8b00807
+
+Abella, L.; Philips, A.; Autschbach, J. The sodium anion is strongly perturbed in the condensed
+phase even though it appears like a free ion in NMR experiments. J. Phys. Chem.
+Lett. 2020, 11, 843–850. DOI: 10.1021/acs.jpclett.9b03432
+
+Philips, A.; Autschbach, J. Quadrupolar NMR Relaxation of Aqueous 127I–, 131Xe, and 133Cs+: A 
+First-Principles Approach from Dynamics to Properties. J. Chem. Theory Comput. 2020, 16, 5835-5844.
+DOI: 10.1021/acs.jctc.0c00581
+
+Cited Literature:
+
+Badu, S.; Truflandier, L. A.; Autschbach, J., ‘Quadrupolar NMR Spin Relaxation Calculated
+Using Ab-initio Molecular Dynamics: Group 1 and Group 17 Ions in Aqueous Solution’,
+J. Chem. Theory Comput. 2013, 9, 4074–4086.
+
+Cowan, B., Nuclear Magnetic Resonance and Relaxation, Cambridge University Press,
+Cambridge, UK, 2005.
+
+Spiess, H. W., ‘Rotation of Molecules and Nuclear Spin Relaxation’, in
+P. Diehl, R. K. E. Fluck (editor), ‘NMR Basic Principles and Progress’, Vol. 15,
+Springer, Berlin, 1978, 55–214.
+
+Bloembergen, N.; Purcell, E.; Pound, R., ‘Relaxation effects in nuclear magnetic resonance
+absorption’, Phys. Rev. 1948, 73, 679–715.
+
+Redfield, A. G., ‘On the Theory of Relaxation Processes’, IBM J. Res. Develop. 1957, 1,
+19–31.
