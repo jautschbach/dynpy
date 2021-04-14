@@ -1,17 +1,17 @@
 Python/IPython tool used for calculating NMR relaxation rates from molecular dynamics trajectories
 =========
 
-`DynPy` is a Python re-implementation and extension of a Fortran code called DynPro ('Dynamic Properties') developed previously in the computational chemistry lab of Dr. Jochen Autschbach. https://ja01.chem.buffalo.edu/
+DynPy is a Python re-implementation and extension of a Fortran code called DynPro ('Dynamic Properties') developed previously in the computational chemistry lab of Dr. Jochen Autschbach. https://ja01.chem.buffalo.edu/
 See Badu et al. (2013) in file NOTES. If you use the software provided in this repository for a research project, we would appreciate it if you cite one or more of the articles by Philips, Autschbach, et al. listed in file NOTES.
 
-The current version of `DynPy` is capable of calculating quadrupolar NMR relaxation from molecular dynamics simulations and calculations of electric field gradient (EFG) tensors along the trajectories. Code for other relaxation mechanisms will be added at a later time. 
+The current version of DynPy is capable of calculating quadrupolar NMR relaxation from molecular dynamics simulations and calculations of electric field gradient (EFG) tensors along the trajectories. Code for other relaxation mechanisms will be added at a later time. 
 
 
 This repository contains the code and helper scripts used to 
 
 (1) Pack simulation boxes and write Quantum Espresso (QE, https://www.quantum-espresso.org/) ab-initio molecular dynamics (aimd) inputs,
 
-(2) Extract clusters from aimd and write inputs for EFG calculations to be run with the Amsterdam Density Functional (ADF, https://www.scm.com/) program or with the `GIPAW' module of QE.
+(2) Extract clusters from aimd and write inputs for EFG calculations to be run with the Amsterdam Density Functional (ADF, https://www.scm.com/) program or with the GIPAW module of QE.
 
 (3) Submit EFG calcs, extract relevant data from EFG outputs, and resubmit any missing, 
 
