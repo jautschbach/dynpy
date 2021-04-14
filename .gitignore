@@ -1,6 +1,7 @@
 *~
 *swp
 *pyc
-notebooks/*checkpoint*
 __*
-notebooks/structure-dynamic.ipynb
+notebooks/
+example-data/
+trajectories/
