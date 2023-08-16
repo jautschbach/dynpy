@@ -50,6 +50,7 @@ echo -e "${solvent}.xyz_4\n0.02" | minimize -k tinker.key;
 echo -e "${solvent}.xyz_5\n1000\n1\n1\n2\n300" | dynamic -k tinker.key;
 
 #Center box on origin
+<<<<<<< HEAD
 python -m tinkertoys -a o -s ${solvent}.001;
 
 #Convert to standard .xyz format
@@ -57,6 +58,14 @@ python -m tinkertoys -x ${solvent}.001_s;
 
 #Write qe inputs and .slm. Manually edit string in toqe() function in tinkertoys.py or generated input files if needed. Writes first four steps of aimd: initial wf opt (*.inp and *inp.2), NVT heating (*.inp.3), and first 5ps NVE production (*inp.4)
 python -m tinkertoys -q ${solvent}.001_s.og ${i} $system $cell_dm $ccr_username;
+=======
+python -m tinkertoys -a o -s ${solvent}.arc;
+
+#Convert to standard .xyz format
+python -m tinkertoys -x ${solvent}.arc_s;
+
+#Write qe inputs and .slm. Manually edit string in toqe() function in tinkertoys.py or generated input files if needed. Writes first four steps of aimd: initial wf opt (*.inp and *inp.2), NVT heating (*.inp.3), and first 5ps NVE production (*inp.4)
+python -m tinkertoys -q ${solvent}.arc_s.og ${i} $system $cell_dm $ccr_username;
 mv *inp* ..;
 mv md.slm ..;
 
