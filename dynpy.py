@@ -4,16 +4,12 @@ import inspect
 
 def usage():
     print("USAGE:"+"\n"+
-    "-h   --help                                                                                                      Displays this message"+ "\n\n"+
-    "-i   --inputs                                                                                                    Generate EFG calculation inputs for ADF and/or QE-GIPAW. Requires parameters defined in neighbors_input.py"+"\n\n"+
-    "-e   --parse-efgs <path to trajectories> <ADF/GIPAW/CP2K> <system/calc description> <time between frames(ps)>    Parse EFG data from ADF or GIPAW outputs. Last two arguments are optional with defaults:"+"\n"+
-    "                                                                                                                 <ADF/GIPAW/CP2K>, None (MD frame and time parsed from comment in input file)"+ "\n\n"+
-    "-q   --Qrelax <efg data file> <analyte symbol> <numeric analyte label>                                           Compute quadrupolar relaxation rates and related parameters.\n"+
-    "                                                                                                                 Analyte symbol is mass number followed by element symbol e.g. 127I.\n" +
-    "                                                                                                                 Last argument is optional (use if you know atom labels are consistent in efg data and you want to designate\n"+
-    "                                                                                                                 analyte by numeric label)" + "\n" +
-    "-s   --SRrelax  <molecule type> <SR tensor principal components [Cx, Cy, Cz] in kHz>                             Calculate 1H SR relaxation rate from MD trajectory.\n"+
-    "                                                                                                                 Currently supported molecule types are 'water','acetonitrile', and 'methane'\n"+
+    "-h   --help                                Displays this message"+ "\n\n"+
+    "-i   --inputs                              Generate EFG calculation inputs for ADF and/or QE-GIPAW. Requires parameters defined in neighbors_input.py"+"\n\n"+
+    "-e   --parse-efgs                          Parse EFG data from ADF or GIPAW outputs."+ "\n\n"+
+    "-q   --Qrelax                              Compute quadrupolar relaxation rates and related parameters.\n\n"+
+    "-s   --SRrelax                             Calculate 1H SR relaxation rate from MD trajectory.\n"+
+    "                                           Currently supported molecule types are 'water','acetonitrile', and 'methane'\n\n"+
     "-d   --DDrelax")
 
 def read_input(input_arg, required):

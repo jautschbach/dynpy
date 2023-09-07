@@ -52,7 +52,8 @@ def PARSE_MD(traj_dir,PD):
         except AttributeError:
             print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
             sys.exit(2)
-        u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel)
+        u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=True)
+        #vel.to_csv("./vel.csv")
         #if parse_vel:
         #    vel = parse_tinker_vel(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
     else:
@@ -142,6 +143,7 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
         velatom = pd.read_csv(traj_dir+vel_file,delim_whitespace=True,usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category'},nrows=nat*((end_prod-start_prod)//sample_freq+1))
         velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
         velatom.loc[:,'frame']=velatom.index//nat
+        velatom.loc[:,['x','y','z']].apply(d_to_e)
         velatom.loc[:,'x'] = velatom.loc[:,'x']/0.529177
         velatom.loc[:,'y'] = velatom.loc[:,'y']/0.529177
         velatom.loc[:,'z'] = velatom.loc[:,'z']/0.529177
@@ -150,6 +152,7 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
         velu.atom.loc[:,'label'] = velu.atom.get_atom_labels()
         velu.atom.loc[:,'label'] = velu.atom['label'].astype(int)       
         vel = velu.atom
+        #vel.to_csv("vel.csv")
     return u, vel
 
 # def parse_tinker_vel(traj_dir,nat,start,end,mod):

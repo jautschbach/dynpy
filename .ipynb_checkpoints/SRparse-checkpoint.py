@@ -31,17 +31,6 @@ def SpinRotation(dynpy_params):
         u, vel = PARSE_MD(pos_dir, PD)
         u.atom['label'] = u.atom.get_atom_labels()
         #print(u.atom.head())
-        #vel.to_csv("./vel.csv")
-        if not vel: # Estimate velocities from atoms and timestep
-            print("Explicit velocities not provided. Will be determined from position and timestep. If timestep is too large, these velocities will be inaccurate.")
-            u.atom.frame = u.atom.frame.astype(int)
-            vel = u.atom.copy()
-            vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
-            vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*PD.timestep)
-            vel = vel.dropna(how='any')
-            u.atom = u.atom[u.atom['frame'] > PD.start_prod]
-        #u.atom.to_csv("./atom.csv")
-        #vel.to_csv("./vel.csv")
 
         u.compute_atom_two(vector=True,bond_extra=0.9)
         time1 = time.time()
@@ -94,18 +83,19 @@ def SpinRotation(dynpy_params):
         print("sort,slice,and add masses to dfs        --- %s seconds ---" % (time3 - time2))
 
         gc.collect()
-        
-        #u.atom.to_csv("./atom.csv")
-        #vel.to_csv("./vel.csv")
-        #u.atom_two.to_csv("./atom_two.csv")
-        vel['molecule'] = vel.index.map(u.atom['molecule'])
-        vel.dropna(how='any',inplace=True)
-        vel.sort_values(by=["molecule","label"],inplace=True)
-        vel.loc[:,'molecule_label']=u.atom.molecule_label.values
-        vel = vel[vel['molecule_label']<SR.nmol]
-        vel.loc[:,'mass'] = u.atom.mass.values
-            
-        
+
+        if vel:
+            vel.loc[:,'molecule'] = u.atom.molecule.values
+            vel.sort_values(by=["molecule","label"],inplace=True)
+            vel.loc[:,'molecule_label']=u.atom.molecule_label.values
+            vel = vel[vel['molecule_label']<SR.nmol]
+            vel.loc[:,'mass'] = u.atom.mass.values
+        else: # Estimate velocities from atoms and timestep
+            u.atom.frame = u.atom.frame.astype(int)
+            vel = u.atom.copy()
+            vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
+            vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*PD.timestep)
+
         u.atom_two.loc[:,'molecule0'] = u.atom_two.atom0.map(u.atom['molecule']).astype(int)
         u.atom_two.loc[:,'molecule1'] = u.atom_two.atom1.map(u.atom['molecule']).astype(int)
         u.atom_two.loc[:,'frame'] = u.atom_two.atom0.map(u.atom['frame']).astype(int)
@@ -164,7 +154,7 @@ def SpinRotation(dynpy_params):
 
         J_acfs = applyParallel(correlate,J.groupby('molecule_label'),columns_in=['x','y','z'],columns_out=['$J_{x}$','$J_{y}$','$J_{z}$'],pass_columns=['frame','molecule_label','molecule'])
         time7 = time.time()
-        print("parallel compute acfs                   --- %s seconds ---" % (time7 - time6))
+        print("parallel compute acfs                   --- %s seconds ---" % (time7 - start_time))
         J_acfs.to_csv(pos_dir+'Jacfs_all.csv')
         Jacf_mean=J_acfs.groupby('frame').apply(np.mean, axis=0)
         Jacf_mean['time']=Jacf_mean['frame']*PD.timestep
@@ -172,7 +162,7 @@ def SpinRotation(dynpy_params):
         #Jacf_mean.to_csv(path+out_prefix+'Jacf.csv')
         #print("write acf data--- %s seconds ---" % (time.time() - start_time))
 
-        C = [float(c)*1000*2*np.pi for c in SR.C_SR]
+        C = [float(c)*1000*1e-12*2*np.pi for c in SR.C_SR]
         #C_par = C_1
         #C_perp = (C_2+C_3)/2
         #c_a = 1/3*(2*C_perp+C_par)

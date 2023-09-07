@@ -1,28 +1,39 @@
 # This is the standard input file for setting extra paramters needed for initializing and parsing MD trajectories, generating clusters,  
 
 class ParseDynamics:
-    # MD_ENGINE = 'QE'
-    # traj_dir = './example-data/Iodide/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-    # start_prod = 30000 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-    # end_prod = 34000
-    # sample_freq = 1000 #number of steps between sampled snapshots. Keep high for testing
-    # md_print_freq = 10
-    # timestep = 6.0*2.418884254e-5 #timestep of aiMD in picoseconds. May be any expression returning floating point value
-    # nat = 192
-    # symbols = ['I'] + ['H']*129 + ['O']*64 #Full list of element symbols in the order they appear in 'ATOMIC_SPECIES' block of QE MD input
-    # celldm = 24.269 #Simulation cell dimension in bohr. May be any expression returning floating point value
+   # MD_ENGINE = 'QE'
+   # traj_dir = './example-data/Iodide/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
+   # start_prod = 30000 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
+   # end_prod = 30100
+   # sample_freq = 10 #number of steps between sampled snapshots. Keep high for testing
+   # md_print_freq = 10
+   # timestep = 6.0*2.418884254e-5 #timestep of aiMD in picoseconds. May be any expression returning floating point value
+   # nat = 192
+   # symbols = ['I'] + ['H']*129 + ['O']*64 #Full list of element symbols in the order they appear in 'ATOMIC_SPECIES' block of QE MD input
+   # celldm = 24.269 #Simulation cell dimension in bohr. May be any expression returning floating point value
     
-    MD_ENGINE = 'Tinker'
-    traj_dir = './example-data/tinker/water/vapor/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-    ntraj = 1 #number of trajectories to parse
-    nat = 600
-    start_prod = 300 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-    end_prod = 400
-    md_print_freq = 1
+    MD_ENGINE = 'QE'
+    traj_dir = './example-data/QE/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
+    start_prod = 30000 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
+    end_prod = 32000
     sample_freq = 10 #number of steps between sampled snapshots. Keep high for testing
-    celldm = 216.86/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
-    nmol = 1
-    timestep = 0.2 #timestep of aiMD in picoseconds. May be any expression returning floating point value
+    md_print_freq = 10
+    timestep = 6.0*2.418884254e-5 #timestep of aiMD in picoseconds. May be any expression returning floating point value
+    nat = 192
+    symbols = ['O','H','H']*64  #Full list of element symbols in the order they appear in 'ATOMIC_SPECIES' block of QE MD input
+    celldm = 23.46 #Simulation cell dimension in bohr. May be any expression returning floating point value
+
+    # MD_ENGINE = 'Tinker'
+    # traj_dir = './example-data/tinker/water/vapor/101kpa/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
+    # ntraj = 1 #number of trajectories to parse
+    # nat = 600
+    # start_prod = 300 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
+    # end_prod = 400
+    # md_print_freq = 1
+    # sample_freq = 10 #number of steps between sampled snapshots. Keep high for testing
+    # celldm = 216.86/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
+    # nmol = 1
+    # timestep = 0.2 #timestep of MD in picoseconds. May be any expression returning floating point value
 
 
 class Snapshots:  #Input parameters file for neighbors.py. Used for parsing qe aiMD, making clusters, and writing inputs for ADF/QE-GIPAW
@@ -40,7 +51,7 @@ class Snapshots:  #Input parameters file for neighbors.py. Used for parsing qe a
 
 class SpinRotation:
     mol_type = 'water'
-    nmol = 10
+    nmol = 64
     C_SR = [33.46,36.9377,35.546]
 
 
