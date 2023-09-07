@@ -22,8 +22,8 @@ import math
 from nuc import *
 nuc_df = pd.DataFrame.from_dict(nuc)
 
-def read_efg_data(file_path,ensemble_average=False):
-    rawdf = pd.io.parsers.read_csv(file_path)
+def read_efg_data(file_path,ensemble_average=False,dtype=None):
+    rawdf = pd.read_csv(file_path,dtype=dtype)
     #if rawdf.isnull().any().any():
     #    print("WARNING: Missing data in "+file_path+". Will be interpolated for computation of correlation functions")
     #if 'label' not in rawdf.columns:
@@ -127,12 +127,13 @@ def spectral_dens(acf,dt=None,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$
 def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=['$\sigma_{2,-2}$', '$\sigma_{2,-1}$', '$\sigma_{2,0}$', '$\sigma_{2,1}$', '$\sigma_{2,2}$']):
     V = acf[columns_in].iloc[0]
     V.index = columns_out
-    V[r'$\langle V(0)^2\rangle$'] = V.sum()
+    V[r'$\langle V(0)^2\rangle$'] = V.values.sum()
     V['symbol'] = acf['symbol'].iloc[0]
-
+    #print(V)
     return V
 
 def correlation_time(spec_dens,norm):
+    #print(norm.values)
     tau = pd.DataFrame.from_dict({r'$\tau_{2,'+str(m)+'}$':[spec_dens['$g_{2,'+str(m)+'}$']/norm['$\sigma_{2,'+str(m)+'}$']] for m in range(-2,3)})
     tau[r'$\tau_{c}$'] = spec_dens['$g_{iso}$']*5/norm[r'$\langle V(0)^2\rangle$']
     tau['symbol'] = spec_dens['symbol']
@@ -156,27 +157,35 @@ def relaxation(spec_dens,analyte):
     return pd.DataFrame.from_dict({'symbol':[spec_dens['symbol']], r'$\frac{1}{T_{1}}$':[longitudinal],r'$\frac{1}{T_{2}}$':[transverse], r'$\frac{1}{T_{iso}}$':[isotropic]})
 
 def Q_rax(efg_data,analyte,label=None):
-    rawdf = read_efg_data(efg_data)
+    rawdf = read_efg_data(efg_data,dtype={'system':'category','traj':'i8','frame':'i8','time':'f8','label':'i8','symbol':'category','Vxx':'f8','Vxy':'f8','Vxz':'f8','Vyx':'f8','Vyy':'f8','Vyz':'f8','Vzx':'f8','Vzy':'f8','Vzz':'f8','V11':'f8','V22':'f8','V33':'f8','eta':'f8'})
     symbol = "".join([char for char in analyte if char.isalpha()])
     ACFs = {}
     res = {}
 
-    rawdf[['time','frame','Vxx','Vxy','Vxz','Vyx','Vyy','Vyz','Vzx','Vzy','Vzz']]=rawdf[['time','frame','Vxx','Vxy','Vxz','Vyx','Vyy','Vyz','Vzx','Vzy','Vzz']].astype(float)
     for traj, df in rawdf.groupby('traj'):
+        #print(df.head().values)
         df = df.sort_values(by='time')
         df['frame'] = df['frame'] - df.frame.iloc[0]
         df['time'] = df['time'] - df.time.iloc[0]
         if label:
+            #print(label)
+            label = int(label)
             adf = df.groupby('label').get_group(label)
         else:
             adf = df.groupby('symbol').get_group(symbol)
 
         spatial = cart_to_spatial(adf,pass_columns=['traj','system'])
-        acfs = correlate(spatial, pass_columns=['traj','system','symbol'])
-        ACFs[traj] = acfs
+        acfs = spatial.groupby('label').apply(correlate, pass_columns=['traj','system','symbol','frame','time'])
+        #print(acfs.columns)
+        acf_mean = acfs.groupby('frame').apply(np.mean)
+        acf_mean.loc[:,'symbol'] = symbol
+        #print(acf_mean.columns)
+        #print(acf_mean.values)
+        ACFs[traj] = acf_mean
 
-        g = spectral_dens(acfs, cutoff=False, cutoff_tol=1e-3)
-        v = normal_factor(acfs)
+        g = spectral_dens(acf_mean, cutoff=False, cutoff_tol=1e-3)
+        #print(g.values)
+        v = normal_factor(acf_mean)
         t = correlation_time(g,v)
         rax = relaxation(g,analyte)
         rax['$\\tau_{c}$'] = t['$\\tau_{c}$']
@@ -187,17 +196,17 @@ def Q_rax(efg_data,analyte,label=None):
     rax = pd.concat(res)
     rax.index = rax.index.droplevel(level=1)
     #print(rax)
-    rax_mean = pd.DataFrame(rax.mean()).T
+    rax_mean = pd.DataFrame(rax.mean(numeric_only=True)).T
     rax_mean.index = ["mean"]
     #print(rax_mean)
-    rax_sem = pd.DataFrame(rax.sem()).T
+    rax_sem = pd.DataFrame(rax.sem(numeric_only=True)).T
     rax_sem.index = ["err"]
     #print(rax_sem)
     all_rax = rax.append(rax_mean,sort=False).append(rax_sem,sort=False)
-    acfs_all = pd.concat(ACFs)
-
+    acfs = pd.concat(ACFs)
     system = efg_data.split('-efg')[0]
-    all_rax.to_csv(system+"-relax.csv",index_label="traj")
-    print("Results written to "+system+"-relax.csv")
-    return(all_rax, acfs_all)
+    all_rax.to_csv(system+"-"+symbol+"-relax.csv",index_label="traj")
+    acfs.to_csv(system+"-"+symbol+"-acfs.csv",index_label="traj")
+    print("Results written to "+system+"-"+symbol+"-relax.csv")
+    return(all_rax, acfs)
     print("Done")

@@ -5,7 +5,7 @@ from exatomic import qe
 from exatomic.algorithms import diffusion
 from exatomic.algorithms import pcf
 
-def parse_qe(traj_dir,symbols,celldm,start_prod=42000,sample_freq=400,compute_distances=True):
+def parse_qe(traj_dir,symbols,PD.celldm,start_prod=60000,sample_freq=350,compute_distances=True):
     unis = {}
     trajs = [t.name for t in os.scandir(traj_dir) if t.name.isnumeric()]
     print("Parsing "+ str(len(trajs)) + " trajectories...")
@@ -26,7 +26,7 @@ def parse_qe(traj_dir,symbols,celldm,start_prod=42000,sample_freq=400,compute_di
         for i, q in enumerate(("x", "y", "z")):
             for j, r in enumerate(("i", "j", "k")):
                 if i == j:
-                    u.frame[q+r] = celldm
+                    u.frame[q+r] = PD.celldm
                 else:
                     u.frame[q+r] = 0.0
             u.frame["o"+q] = 0.0
@@ -107,8 +107,8 @@ def plane_norm(df):
     except IndexError:
         return np.array([0,0,0])
 
-def rotational_correlation(unis,timestep=6.0,compute_distances=True):
-    dt = timestep*2.418884e-5
+def rotational_correlation(unis,ss.timestep=6.0,compute_distances=True):
+    dt = ss.timestep*2.418884e-5
     if compute_distances:
         u.compute_atom_two(vector=True,dmax=5)
         u.compute_molecule()

@@ -8,24 +8,28 @@ import getopt
 #xyz = "/projects/jochena/adamphil/projects/Na/short/s_07/2_wfcopt/water.xyz_3"
 def usage():
     print("USAGE:"+"\n"+
-    "-h      help"+ "\n"+
-    "-b      compute boxsize"+"\n"+
-    "-c      Center an xyz file"+"\n"+
-    "-r      Randomize analyte"+ "\n"+
-    "-x      Convert to basic xyz format"+"\n"+
-    "-q      Write QE input file")
+"-h      help"+ "\n"+
+"-b      compute boxsize"+"\n"+
+"-c      Center an xyz file"+"\n"+
+"-r      Randomize analyte"+ "\n"+
+"-x      Convert to basic xyz format"+"\n"+
+"-q      Write QE input file")
 
 #usage()
-def boxsize(fname,dens):
+def boxsize(fname,dens,deuterated=True):
     #print(dens)
-    mw={'H':2.01355, 'C':12.0107, 'N':14.0067, 'O':15.999, 'I':126.90, 'Cs':132.91, 'Xe':131.29, 'Cl':35.45, 'Pt':195.085}
+    mw={'H':1.0078, 'D':2.0141, 'C':12.0107, 'N':14.0067, 'O':15.999, 'I':126.90, 'Cs':132.91, 'Xe':131.29, 'Cl':35.45, 'Pt':195.085, 'Na': 22.99}
     aa=6.022e23
     df = pd.read_csv(fname, header=None, skiprows=2, delim_whitespace=True, names=['sym','x','y','z'])
 
     grouped=df.groupby('sym')
     mass=0
     for group,atoms in grouped:
-        mass+=len(atoms)*mw[group]
+        symbol = group
+        if group == 'H':
+            if deuterated:
+                symbol = 'D'
+        mass+=len(atoms)*mw[symbol]
     #print(mass)
     mass/=aa
     v=(mass/dens)*(1e24)
@@ -39,19 +43,18 @@ def toxyz(fname):
     with open(fname, 'r') as f:
         lines = f.readlines()
     #print(lines)
-    line = lines[2]
+    l = lines[1]
     #print(line)
-    sym = line.split()[1]
+    ll = l.split()[1]
     #print(sym)
     try:
-        float(sym)
-        skip = 2
-        #skip = [0, 1]
+        float(ll)
+        skip = [0, 1]
     except ValueError:
-        skip = 1
-        #skip = [0]
+        skip = [0]
     #print(lines)
     #print(skip)
+    #skip=2
 
     df = pd.read_csv(fname, header=None, skiprows=skip, delim_whitespace=True, names=['A','B','C','D','E','F','G','H','I','J','K'])
 
@@ -93,12 +96,10 @@ def toxyz(fname):
 #toxyz(xyz)
 
 def shift(fname,a,r):
-    #print(a)
-    #print(r)
+    #print(fname,a,r)
     with open(fname, 'r') as f:
-        lines = [line for line in islice(f,2)]
+        lines = [line for line in islice(f,3) if line!='\n']
     line = lines[1]
-    #print(line)
     sym = line.split()[1]
     try:
         float(sym)
@@ -114,6 +115,7 @@ def shift(fname,a,r):
         df['D']-= np.min(df['D'])
         df['E']-= np.min(df['E'])
     elif a == 'r':
+        r = float(r)
         df['C']+= np.random.random()*r
         df['D']+= np.random.random()*r
         df['E']+= np.random.random()*r
@@ -562,7 +564,7 @@ def au_to_ang(xyz):
     df[['x','y','z']] = df[['x','y','z']]*0.529177
     df.to_csv("test.xyz", sep=' ', index=False,header=False)
     with open("test.xyz" ,'r') as f:
-        lines = f.readlines()
+        lines = f.realines()
     with open("test.xyz" ,'w') as f:
         f.write(str(len(lines))+'\n\n')
         for line in lines:
@@ -571,10 +573,12 @@ def au_to_ang(xyz):
 def main():
     try:
 
-        opts, args = getopt.getopt(sys.argv[1:], "hb:r:a:s:x:q:e:p:au:")
-
+        opts, args = getopt.getopt(sys.argv[1:], "hb:s:x:q:e:p:u:")
+        #print(opts)
+        #print(arg)
     except getopt.GetoptError:
         # Print debug info
+        print("no options given")
         usage()
         sys.exit(2)
 
@@ -591,19 +595,28 @@ def main():
 
         elif opt == "-b":
             dens = float(args[0])
-            boxsize(arg,dens)
-
-        elif opt == "-a":
-            a = str(arg)
-            r = None
-
-        elif opt == "-r":
-            #print("arg -r used")
-            r = float(arg)
-            #print(r)
+            try:
+                deuterated = bool(args[1])
+            except IndexError:
+                deuterated = True
+            boxsize(arg,dens,deuterated)
 
         elif opt == "-s":
-            shift(arg,a,r)
+            try:
+                a = float(arg)
+                r = None
+                shift(args[0],a,r)
+            except ValueError:
+                a = str(arg)
+                #print("a = "+a)
+                if a == 'r':
+                    r = args[0]
+                    shift(args[1],a,r)
+                elif a == 'o':
+                    r = None
+                    #print(args)
+                    shift(args[0],a,r)
+
 
         elif opt == "-x":
             toxyz(arg)
