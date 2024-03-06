@@ -4,6 +4,10 @@ import exatomic
 from exatomic import qe
 from exatomic.algorithms import diffusion
 from exatomic.algorithms import pcf
+import signal
+from dynpy import signal_handler
+
+#signal.signal(signal.SIGINT, signal_handler)
 
 def parse_qe(traj_dir,symbols,PD.celldm,start_prod=60000,sample_freq=350,compute_distances=True):
     unis = {}

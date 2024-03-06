@@ -19,6 +19,10 @@ from multiprocessing import Pool, cpu_count, set_start_method
 #import ray
 import time
 start_time = time.time()
+import signal
+from dynpy import signal_handler
+
+#signal.signal(signal.SIGINT, signal_handler)
 
 traj = 'ss'
 pres = 'pp'

@@ -1,3 +1,5 @@
+import signal as sig
+#from dynpy import worker_init
 import pandas as pd
 import string
 import matplotlib.pyplot as plt
@@ -10,13 +12,35 @@ from scipy.integrate import cumtrapz
 from numba import vectorize, guvectorize, float64, complex128
 import os
 import sys
-import exa
-import exatomic
-exa.logging.disable(level=10)
-exa.logging.disable(level=20)
-from exatomic import qe
+#import exa
+#import exatomic
+#exa.logging.disable(level=10)
+#exa.logging.disable(level=20)
+#from exatomic import qe
 import math
 from multiprocessing import Pool, cpu_count
+import psutil
+
+def worker_init(parent_id):
+    #print(parent_id)
+    #parent = psutil.Process(parent_id)
+    #print(parent)
+    #print(parent.children())
+    def sig_int(signal_num, frame):
+        print(parent_id)
+        print('signal: %s' % signal_num)
+        parent = psutil.Process(parent_id)
+        for child in parent.children():
+            print(child.pid)
+            if child.pid != os.getpid():
+                print("killing child: %s" % child.pid)
+                child.kill()
+        print("killing parent: %s" % parent_id)
+        parent.kill()
+        print("suicide: %s" % os.getpid())
+        psutil.Process(os.getpid()).kill()
+        os._exit(1)
+    sig.signal(sig.SIGINT, sig_int)
 
 def applyParallel(func,dfGrouped,cpus=cpu_count(),**kwargs):
     values = kwargs.values()
@@ -28,16 +52,24 @@ def applyParallel2(func,dfGrouped1,dfGrouped2,cpus=cpu_count(),*args):
     with Pool(cpus) as p:
         ret_list = p.starmap(func, [(group1[1],group2[1],*args) for group1,group2 in zip(dfGrouped1,dfGrouped2)])
     return pd.concat(ret_list)
+
 def applyParallel3(func,dfGrouped1,dfGrouped2,dfGrouped3,cpus=cpu_count(),**kwargs):
+    parent_id = os.getppid()
     values = kwargs.values()
+    #sig.signal(sig.SIGINT, signal_handler)
     #print([(group1,group2,group3) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)])
-    with Pool(cpus) as p:
-        ret_list = p.starmap_async(func, [(group1[1],group2[1],group3[1],*values) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)]).get()
+    with Pool(cpus,worker_init(parent_id)) as p:
+        try:
+            ret_list = p.starmap_async(func, [(group1[1],group2[1],group3[1],*values) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)]).get()
+        except KeyboardInterrupt:
+        #    p.terminate()
+            sys.exit(1)
     #return ret_list
     ret = list(zip(*ret_list))
     #print(ret)
     return pd.concat(ret[0]),pd.concat(ret[1]),pd.concat(ret[2])
     #return pd.concat(ret_list)
+
 def applyParallel_D(func,dfGrouped1,dfGrouped2,dfGrouped3,cpus=cpu_count(),**kwargs):
     values = kwargs.values()
     #print([(group1,group2,*args) for group1,group2 in zip(dfGrouped1,dfGrouped2)])
@@ -191,10 +223,10 @@ def wiener_khinchin(f):
    acf = acf/N
    return acf
 def correlate(df,columns_in=['$\omega$','$\omega_x$','$\omega_y$','$\omega_z$'],columns_out=['$G$','$G_x$','$G_y$','$G_z$'], pass_columns=['time','molecule0']):
-   acf = df[columns_in].apply(wiener_khinchin)
-   acf.columns = columns_out
-   acf[pass_columns] = df[pass_columns]
-   return acf
+    acf = df[columns_in].apply(wiener_khinchin)
+    acf.columns = columns_out
+    acf[pass_columns] = df[pass_columns]
+    return acf
 
 #@jit(nopython=True,parallel=True)
 def Proj(a,b):
@@ -364,6 +396,8 @@ def mol_fixed_coord(mol,mol_type):
             sys.exit("Only molecule types methane, water, and acetonitrile are supported")
 
 def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
+    #sig.signal(sig.SIGINT, signal_handler)
+    #signal.signal(signal.SIGINT, signal.SIG_IGN)
     #print(pos.head().values)
     #print(vel.head().values)
     #print(two.head().values)
@@ -414,6 +448,7 @@ def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
     return mol_ax_df,o_ax_df,J_cart_df
 
 def SR_func2(pos,vel,two,mol_type,mol_ax_init,return_euler=False,rot_mat=np.diag([1,1,1])):
+    #sig.signal(sig.SIGINT, signal_handler)
     #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         #print(pos)
     pos[['x','y','z']] = rel_center(pos)

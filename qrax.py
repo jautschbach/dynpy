@@ -19,8 +19,11 @@ import exatomic
 from exatomic import qe
 import notebook as nb
 import math
+import signal
+from dynpy import signal_handler
 from nuc import *
 nuc_df = pd.DataFrame.from_dict(nuc)
+#signal.signal(signal.SIGINT, signal_handler)
 
 def read_efg_data(file_path,ensemble_average=False,dtype=None):
     rawdf = pd.read_csv(file_path,dtype=dtype)

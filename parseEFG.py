@@ -9,6 +9,10 @@ import re
 from numpy import linalg as la
 from dynpy import *
 import sys
+import signal
+from dynpy import signal_handler
+
+#signal.signal(signal.SIGINT, signal_handler)
 
 def reorder_prnc_comp(nuc,columns=['V11','V22','V33']):
     ordered = sorted(nuc[columns],key=lambda x: abs(float(x)))

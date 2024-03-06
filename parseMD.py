@@ -2,12 +2,15 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 import os
-import exa
-import exatomic
-exa.logging.disable(level=10)
-exa.logging.disable(level=20)
-from exatomic import qe
+#import exa
+#import exatomic
+#exa.logging.disable(level=10)
+#exa.logging.disable(level=20)
+#from exatomic import qe
 import sys
+import signal
+#from dynpy import signal_handler
+from universe import Universe, Atom, Frame, Molecule, compute_frame_from_atom
 
 def PARSE_MD(traj_dir,PD):
     try:
@@ -52,16 +55,21 @@ def PARSE_MD(traj_dir,PD):
         except AttributeError:
             print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
             sys.exit(2)
-        u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=True)
+        u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel)
         #vel.to_csv("./vel.csv")
         #if parse_vel:
         #    vel = parse_tinker_vel(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
+    #elif PD.MD_ENGINE == "prepared":
+    #    u, vel = _prepared(pd.read_csv(traj_dir+"methane-01-atom-table.csv")
+    
     else:
         print("MD_ENGINE not provided or not known. Implemented engines are QE, CP2K, and Tinker. Do you need to parse MD trajectories?")
         sys.exit(2)
 
     # Add the unit cell dimensions to the frame table of the universe
-    add_cell_dm(u,PD.celldm)
+    u.frame = compute_frame_from_atom(u.atom)
+    u.frame.add_cell_dm(celldm = PD.celldm)
+    u.compute_unit_atom()
 
     return u,vel
 
@@ -71,7 +79,7 @@ def parse_qe_md(traj_dir,symbols,sample_freq,start_prod=None,end_prod=None,parse
     except:
         print("Did not find .pos trajectory file at " + traj_dir + " for parsing QE dynamics. Is this what you wanted?")
         sys.exit(2)
-    atom = qe.parse_xyz(traj_dir+pos,symbols=symbols)
+    atom = qe.parse_xyz(traj_dir+'/'+pos,symbols=symbols)
     atom['frame'] = atom['frame'].astype(int)
     if start_prod == None:
         start_prod = atom['frame'].iloc[0]
@@ -84,7 +92,7 @@ def parse_qe_md(traj_dir,symbols,sample_freq,start_prod=None,end_prod=None,parse
     vel=None
     if parse_vel:
         vel_file = list(filter(lambda x: ".vel" in x, os.listdir(traj_dir)))[0]
-        vel = qe.parse_xyz(traj_dir+vel_file,symbols=symbols)
+        vel = qe.parse_xyz(traj_dir+'/'+vel_file,symbols=symbols)
         vel['frame'] = vel['frame'].astype(int)
         vel = vel[(vel['frame'] >= start_prod) & (vel['frame'] <= end_prod) & ((vel['frame']-start_prod)%sample_freq==0)]
     
@@ -93,7 +101,7 @@ def parse_qe_md(traj_dir,symbols,sample_freq,start_prod=None,end_prod=None,parse
 def parse_cp2k_md(traj_dir, sample_freq, md_print_freq, start_prod=None, end_prod=None, parse_vel=False):
     print("Reading trajectory output from CP2K...")
     pos = list(filter(lambda x: "pos" in x, os.listdir(traj_dir)))[0]
-    xyz = exatomic.XYZ.from_file(traj_dir+pos)
+    xyz = exatomic.XYZ.from_file(traj_dir+'/'+pos)
     
     u = exatomic.XYZ.to_universe(xyz)
     u.atom['label'] = u.atom.get_atom_labels()
@@ -109,7 +117,7 @@ def parse_cp2k_md(traj_dir, sample_freq, md_print_freq, start_prod=None, end_pro
     vel=None
     if parse_vel:
         vel_file = list(filter(lambda x: "vel" in x, os.listdir(traj_dir)))[0]
-        velxyz = exatomic.XYZ.from_file(traj_dir+vel_file)
+        velxyz = exatomic.XYZ.from_file(traj_dir+'/'+vel_file)
         velu = exatomic.XYZ.to_universe(velxyz)
         velu.atom['label'] = velu.atom.get_atom_labels()
         velu.atom.drop_duplicates(['frame','label'], keep='last',inplace=True)
@@ -123,36 +131,58 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
     arc = list(filter(lambda x: "arc" in x, os.listdir(traj_dir)))[0]
     cols = ['symbol','x','y','z']
     #read from .arc and eliminate comment lines
-    atom = pd.read_csv(traj_dir+arc,delim_whitespace=True,usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category'},nrows=nat*((end_prod-start_prod)//sample_freq+1))
+    atom = pd.read_csv(traj_dir+'/'+arc,delim_whitespace=True,usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)//sample_freq+1))
     atom.loc[:,'symbol']=atom.loc[:,'symbol'].apply(normsym)
     atom.loc[:,'frame']=atom.index//nat
-    atom.loc[:,'x'] = atom.loc[:,'x']/0.529177
-    atom.loc[:,'y'] = atom.loc[:,'y']/0.529177
-    atom.loc[:,'z'] = atom.loc[:,'z']/0.529177
-    u = exatomic.Universe()
-    u.atom = atom
+    #print(atom.head())
+    atom.loc[:,'x'] = atom.loc[:,'x'].apply(d_to_e)/0.529177
+    atom.loc[:,'y'] = atom.loc[:,'y'].apply(d_to_e)/0.529177
+    atom.loc[:,'z'] = atom.loc[:,'z'].apply(d_to_e)/0.529177
+    
+    u = Universe(Atom(atom))
+    #u.atom = atom
 
     u.atom.loc[:,'label'] = u.atom.get_atom_labels()
     u.atom.loc[:,'label'] = u.atom['label'].astype(int)
-
-    vel=None
+    #u.atom.loc[:,['x','y','z']] = u.atom[['x','y','z']].astype(float)
+    #print(u.atom.head())
+    vel=pd.DataFrame()
     if parse_vel:
         vel_file = list(filter(lambda x: "vel" in x, os.listdir(traj_dir)))[0]
         cols = ['symbol','x','y','z']
         #read from .vel and eliminate comment lines
-        velatom = pd.read_csv(traj_dir+vel_file,delim_whitespace=True,usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category'},nrows=nat*((end_prod-start_prod)//sample_freq+1))
+        velatom = pd.read_csv(traj_dir+'/'+vel_file,delim_whitespace=True,usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+1))  |  (x%(nat+1)==0) | (x%(nat+1)==1) | ((x//(nat+1)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)//sample_freq+1))
         velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
         velatom.loc[:,'frame']=velatom.index//nat
-        velatom.loc[:,['x','y','z']].apply(d_to_e)
-        velatom.loc[:,'x'] = velatom.loc[:,'x']/0.529177
-        velatom.loc[:,'y'] = velatom.loc[:,'y']/0.529177
-        velatom.loc[:,'z'] = velatom.loc[:,'z']/0.529177
-        velu = exatomic.Universe()
-        velu.atom = velatom
+        velatom.loc[:,'x'] = velatom.loc[:,'x'].apply(d_to_e)/0.529177
+        velatom.loc[:,'y'] = velatom.loc[:,'y'].apply(d_to_e)/0.529177
+        velatom.loc[:,'z'] = velatom.loc[:,'z'].apply(d_to_e)/0.529177
+        velu = Universe(Atom=Atom(velatom))
+        #velu.atom = velatom
         velu.atom.loc[:,'label'] = velu.atom.get_atom_labels()
         velu.atom.loc[:,'label'] = velu.atom['label'].astype(int)       
         vel = velu.atom
         #vel.to_csv("vel.csv")
+    return u, vel
+
+def _prepared(atom_data,timestep,start_prod,celldm):
+    atom = Atom(atom_data)
+    u = Universe(atom)
+    u.atom.loc[:,'label'] = u.atom.get_atom_labels()
+    u.atom.loc[:,'label'] = u.atom['label'].astype(int)
+    u.atom.loc[:,'frame'] = u.atom['frame'].astype(int)
+    vel = u.atom.copy()
+    vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
+    vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*timestep)
+    vel = vel.dropna(how='any')
+    u.atom = u.atom[u.atom['frame'] > start_prod]
+
+    # Add the unit cell dimensions to the frame table of the universe
+    u.frame = compute_frame_from_atom(atom)
+    u.frame.add_cell_dm(celldm)
+    u.compute_unit_atom()
+
+    u.compute_atom_two(vector=True,bond_extra=0.9)
     return u, vel
 
 # def parse_tinker_vel(traj_dir,nat,start,end,mod):
@@ -168,28 +198,6 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
     
 #     return vel
 
-def parse_many(PD):
-    if 'trajs' not in PD.__dict__.keys():
-        print("List of trajectories not provided. All will be parsed...")
-        trajs = [t.name for t in os.scandir(PD.traj_dir) if t.name.isnumeric()]
-    print("The following directories will be parsed as trajectories:")
-    for traj in trajs:
-        print(PD.traj_dir+traj)
-    return trajs
-
-def add_cell_dm(u,celldm):
-    # Add the unit cell dimensions to the frame table of the universe
-    for i, q in enumerate(("x", "y", "z")):
-        for j, r in enumerate(("i", "j", "k")):
-            if i == j:
-                u.frame[q+r] = celldm
-            else:
-                u.frame[q+r] = 0.0
-        u.frame["o"+q] = 0.0
-    u.frame['periodic'] = True
-
-    grouped = u.atom.groupby('frame')
-
 def normsym(sym):
     sym=str(sym)
     if len(sym) > 1:
@@ -197,7 +205,8 @@ def normsym(sym):
           sym = sym[0]
     return sym
 
-def d_to_e(line):
-    if 'D' in line:
-        return float(line.replace('D', 'E'))
-    
+def d_to_e(val):
+    if 'D' in val:
+        return float(val.replace('D', 'E'))
+    else:
+        return float(val)

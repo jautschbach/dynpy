@@ -1,6 +1,9 @@
 import sys
+import os
 import getopt
 import inspect
+import signal as sig
+import psutil
 
 def usage():
     print("USAGE:"+"\n"+
@@ -32,8 +35,13 @@ def read_input(input_arg, required):
                 sys.exit(2)
     return dynpy_params
 
+#def signal_handler(sig, frame):
+#    print('Keyboard Interrupt')
+#    sys.exit(2)
+
 
 def main():
+    #signal.signal(signal.SIGINT, signal_handler)
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hi:e:q:s:d:",["help",'inputs','parse-efgs','Qrelax','SRrelax','DDrelax'])
     except getopt.GetoptError:
@@ -105,10 +113,11 @@ def main():
             required = {'ParseDynamics': ['MD_ENGINE','traj_dir','sample_freq','timestep','celldm'],
                         'SpinRotation': ['mol_type','C_SR']}
             dynpy_params = read_input(args[0],required)
+            
             import SRparse
-
-            SRparse.SpinRotation(dynpy_params)
-
+            
+            SRparse.SR_module_main(dynpy_params.ParseDynamics,dynpy_params.SpinRotation)
+        
         elif opt in ("-d","--DDrelax"):
             import ddrax
             ddrax.DD_func()

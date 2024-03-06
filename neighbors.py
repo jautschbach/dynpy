@@ -3,15 +3,19 @@ import numpy as np
 import scipy as sp
 import os
 import sys
-import exa
-import exatomic
-exa.logging.disable(level=10)
-exa.logging.disable(level=20)
-from exatomic import qe
-from exatomic.algorithms import neighbors
-from exatomic.algorithms.neighbors import periodic_nearest_neighbors_by_atom    # Only valid for simple cubic periodic cells
+#import exa
+#import exatomic
+#exa.logging.disable(level=10)
+#exa.logging.disable(level=20)
+#from exatomic import qe
+#from exatomic.algorithms import neighbors
+#from exatomic.algorithms.neighbors import periodic_nearest_neighbors_by_atom    # Only valid for simple cubic periodic cells
 from nuc import *
 from parseMD import *
+import signal
+from dynpy import signal_handler
+
+#signal.signal(signal.SIGINT, signal_handler)
 
 def My_fn(x,analyte,symbols):
     solv = [s for s in list(set(symbols)) if s is not analyte]
