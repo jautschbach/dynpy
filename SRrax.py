@@ -368,32 +368,32 @@ def K11(J,D,c_a,c_d,pass_columns=['frame','molecule','molecule_label']):
     return Kdf
 
 def mol_fixed_coord(mol,mol_type):
-        if mol_type.casefold()=="acetonitrile":
-            CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
-            z = CN/la.norm(CN)
-            CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
-            x = plane_norm(z,CH)
-            #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-            y = plane_norm(z,x)
-            #print(x,y,z)
-            return np.array([x,y,z]).T
-        elif mol_type.casefold()=="methane":
-            z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
-            x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
-            #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-            y = plane_norm(z,x)
-            #print(np.array(x),y,z)
-            return np.array([x,y,z]).T
-        elif mol_type.casefold()=="water":
-            OH1 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==1)][['dx','dy','dz']].values.astype(float)[0]
-            OH2 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==2)][['dx','dy','dz']].values.astype(float)[0]
-            Z = -(OH1+OH2)/la.norm(OH1+OH2)
-            X = plane_norm(Z,OH1)
-            Y = plane_norm(Z,X)
-            #print(np.array(x),y,z)
-            return np.array([X,Y,Z]).T
-        else:
-            sys.exit("Only molecule types methane, water, and acetonitrile are supported")
+    if mol_type.casefold()=="acetonitrile":
+        CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
+        z = CN/la.norm(CN)
+        CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
+        x = plane_norm(z,CH)
+        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+        y = plane_norm(z,x)
+        #print(x,y,z)
+        return np.array([x,y,z]).T
+    elif mol_type.casefold()=="methane":
+        z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
+        x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
+        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+        y = plane_norm(z,x)
+        #print(np.array(x),y,z)
+        return np.array([x,y,z]).T
+    elif mol_type.casefold()=="water":
+        OH1 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==1)][['dx','dy','dz']].values.astype(float)[0]
+        OH2 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==2)][['dx','dy','dz']].values.astype(float)[0]
+        Z = -(OH1+OH2)/la.norm(OH1+OH2)
+        X = plane_norm(Z,OH1)
+        Y = plane_norm(Z,X)
+        #print(np.array(x),y,z)
+        return np.array([X,Y,Z]).T
+    else:
+        sys.exit("Only molecule types methane, water, and acetonitrile are supported")
 
 def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
     #sig.signal(sig.SIGINT, signal_handler)

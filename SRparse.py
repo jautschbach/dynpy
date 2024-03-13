@@ -22,21 +22,22 @@ import time
 import signal as sig
 from helper import user_confirm, which_trajs
 
-def SR_module_main(PD=ParseDynamics, SR=SpinRotation):
+def SR_module_main(us,vels,PD,SR):
     outer_start_time = time.time()
-    
-    which_trajs(PD)
-    for traj in PD.trajs:
+    for u,vel in zip(us.values(),vels.values()):
         inner_start_time = time.time()
-        u,vel = prep_SR_uni1(PD.traj_dir+traj,PD)
+        u,vel = prep_SR_uni1(u,vel,PD,SR)
         time1 = time.time()
         print("compute_atom_two                           --- {t:.2f} seconds ---".format(t = time1 - inner_start_time))
-
+        #print(u.atom.tail())
         u,vel = prep_SR_uni2(u,vel,PD,SR)
         time2 = time.time()
         print("compute, classify, and label molecules     --- {t:.2f} seconds ---".format(t = time2 - time1))
 
         pos_grouped, vel_grouped, bonds_grouped = prep_SR_uni3(u,vel)
+        #pos_grouped.get_group(15).to_csv(PD.traj_dir+"pos_grouped.csv")
+        #vel_grouped.get_group(15).to_csv(PD.traj_dir+"vel_grouped.csv")
+        #bonds_grouped.get_group(15).to_csv(PD.traj_dir+"bonds_grouped.csv")
         time3 = time.time()
         print("group dataframes by molecule               --- {t:.2f} seconds ---".format(t = time3 - time2))
 
@@ -55,9 +56,9 @@ def SR_module_main(PD=ParseDynamics, SR=SpinRotation):
         #J = J.assign(frame=pos.loc[::5,'frame'].values,molecule=pos.loc[::5,'molecule'].values,molecule_label=pos.loc[::5,'molecule_label'].values)
         #av.to_csv(scratch+'ang_vel_cart.csv')
         #out_prefix=temp+'-'+pres+'-test-'+traj+'-'
-        #mol_ax.to_csv(path+out_prefix+'molax.csv',sep = ' ')
-        #av_ax.to_csv(path+out_prefix+'ang_vel_molax.csv')
-        #J.to_csv(path+out_prefix+'J_cart.csv')
+        mol_ax.to_csv(PD.traj_dir+'molax.csv')
+        av_ax.to_csv(PD.traj_dir+'ang_vel_molax.csv')
+        J.to_csv(PD.traj_dir+'J_cart.csv')
         #print("write ax,vel,mom data--- %03.2s seconds ---" % (time.time() - start_time))
         
         J_acfs = applyParallel(correlate,J.groupby('molecule_label'),columns_in=['x','y','z'],columns_out=['$J_{x}$','$J_{y}$','$J_{z}$'],pass_columns=['frame','molecule_label','molecule'])
@@ -67,7 +68,7 @@ def SR_module_main(PD=ParseDynamics, SR=SpinRotation):
         print("parallel compute acfs                      --- {t:.2f} seconds ---".format(t = time5 - time4))
 
         """Write data to csv?"""
-        #J_acfs.to_csv(pos_dir+'Jacfs_all.csv')
+        J_acfs.to_csv(PD.traj_dir+'Jacfs_all.csv')
         #mol_ax.to_csv(pos_dir+'mol_ax.csv')
         #av_ax.to_csv(pos_dir+'av_ax.csv')
         #J.to_csv(pos_dir+'J.csv')
@@ -77,12 +78,18 @@ def SR_module_main(PD=ParseDynamics, SR=SpinRotation):
 
         r = compute_SR_rax(Jacf_mean,SR)
         print("1/T1     =     {t:.4f} Hz".format(t=r))
-        print("Total SR Run Time for {s}    --- {t:.2f} seconds ---".format(s = PD.traj_dir+traj, t = time.time() - inner_start_time))
+        print("Total SR Run Time for {s}    --- {t:.2f} seconds ---".format(s = PD.traj_dir, t = time.time() - inner_start_time))
     
     print("Total SR Run Time         --- {t:.2f} seconds ---".format(t = time.time() - outer_start_time))
 
-def prep_SR_uni1(traj,PD):
-    u, vel = PARSE_MD(traj, PD)
+
+def prep_SR_uni1(u,vel,PD,SR):
+    u.atom = Atom(u.atom)
+    # Add the unit cell dimensions to the frame table of the universe
+    u.frame = compute_frame_from_atom(u.atom)
+    u.frame.add_cell_dm(celldm = PD.celldm)
+    u.compute_unit_atom()
+
     u.atom['label'] = u.atom.get_atom_labels()
     #u.atom[['x','y','z']] = u.atom[['x','y','z']].astype(float)
     u.atom.frame = u.atom.frame.astype(int)
@@ -98,42 +105,50 @@ def prep_SR_uni1(traj,PD):
         vel = vel.dropna(how='any')
         u.atom = u.atom[u.atom['frame'] > PD.start_prod]
     #print(u.atom.tail())
-    u.compute_atom_two(vector=True,bond_extra=0.9)
-    
+    u.atom = u.atom[((u.atom['frame']-PD.start_prod) % SR.sample_freq) == 0]
+    vel = vel[((vel['frame']-PD.start_prod) % SR.sample_freq) == 0]
+    u.compute_atom_two(vector=True,bond_extra=0.45)
+  
     return u, vel
         
 def prep_SR_uni2(u, vel, PD, SR):
     u.compute_molecule()
-
     if SR.mol_type == 'water':
         u.molecule.classify(('H(2)O(1)','water',True))
+        nat_per_mol = 3
     elif SR.mol_type == 'acetonitrile':
         u.molecule.classify(('H(3)C(2)N(1)','acetonitrile',True))
+        nat_per_mol = 6
     elif SR.mol_type == 'methane':
         u.molecule.classify(('H(4)C(1)','methane',True))
-    #print(u.molecule.head())
-
+        nat_per_mol = 5
+    #print(u.molecule.head(20))
     u.atom.loc[:,'classification'] = u.atom.molecule.map(u.molecule.classification)
     
     u.atom = u.atom[u.atom['classification'] == SR.mol_type]
     
     labels = pd.DataFrame(u.atom.groupby('molecule').apply(lambda x: tuple(x['label'])),columns=['mol_atom_labels'])
+    labels = labels[labels['mol_atom_labels']!=()]
     molecule_labels = labels.groupby('mol_atom_labels').nunique().reset_index().reset_index().rename(columns={'index':'molecule_label'}).set_index('mol_atom_labels')
+    #print(molecule_labels)
     labels['molecule_label'] = labels.mol_atom_labels.map(molecule_labels.molecule_label)
-    u.atom['molecule_label'] = u.atom.molecule.map(labels.molecule_label)
+    #print(labels)
+    u.atom['molecule_label'] = u.atom.molecule.map(labels.molecule_label).astype(int)
+    #print(u.atom)
     sets = u.atom.groupby('frame').apply(lambda x: set(list(x['molecule_label']))).values.tolist()
     contiguos_molecules = set.intersection(*sets)
     u.atom = u.atom[u.atom['molecule_label'].isin(contiguos_molecules)]
-
+    #print(u.atom.head())
     u.atom.loc[:,'molecule'] = u.atom.loc[:,'molecule'].values.astype(int)
     u.atom.sort_values(by=["molecule","label"],inplace=True)
     #u.atom.loc[:,'molecule_label']=list(range(len(u.atom[u.atom['frame']==u.atom.iloc[0]['frame']].molecule.values)))*len(u.atom.frame.unique())
     #u.atom.loc[:,'molecule_label']=u.atom[u.atom['frame']==u.atom.iloc[0]['frame']].molecule.values.tolist()*len(u.atom.frame.unique())
     u.atom = u.atom[u.atom['molecule_label']<SR.nmol]
 
-    #print(u.atom.head())
+    #print(u.atom.head)
     #print(len(u.atom[u.atom['molecule']==0].label.values.tolist()*SR.nmol*len(u.atom.frame.unique())))
-    mol_atom_labels = [n for n in range(len(u.atom[u.atom['molecule']==0]))]
+    mol_atom_labels = [n for n in range(nat_per_mol)]
+    #print(mol_atom_labels)
     u.atom.loc[:,'mol-atom_index']=mol_atom_labels*(len(u.atom.frame)//len(mol_atom_labels))
     #print(u.atom.head())
     #print(u.atom.tail())
@@ -142,7 +157,7 @@ def prep_SR_uni2(u, vel, PD, SR):
     u.atom_two.loc[:,'molecule_label1'] = u.atom_two.atom1.map(u.atom['molecule_label'])
     u.atom_two = u.atom_two[(u.atom_two['molecule_label0']<SR.nmol) & (u.atom_two['molecule_label1']<SR.nmol)]
     
-    vel['molecule'] = vel.index.map(u.atom['molecule'])
+    vel.loc[:,'molecule'] = vel.index.map(u.atom['molecule'])
     vel.dropna(how='any',inplace=True)
     vel.sort_values(by=["molecule","label"],inplace=True)
     vel.loc[:,'molecule_label']=u.atom.molecule_label.values
@@ -174,7 +189,7 @@ def prep_SR_uni3(u,vel):
     vel_grouped = vel.groupby('molecule',observed=True)
     #del vel
     #print(bonds_grouped.groups)
-    #pos.to_csv(scratch+'atom.csv')
+    #pos_grouped.to_csv(scratch+'atom.csv')
     #vel.to_csv(scratch+'vel.csv')
 
     return pos_grouped, vel_grouped, bonds_grouped

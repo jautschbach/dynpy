@@ -5,8 +5,8 @@ from networkx.algorithms.components import connected_components
 from distances import cartmag, modv, compute_atom_two, sym2mass
 
 class Universe:
-    def __init__(self, Atom, **kwargs):
-        self.atom = Atom
+    def __init__(self, atom, **kwargs):
+        self.atom = Atom(atom)
         #self.frame = Frame.
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -65,8 +65,8 @@ class Atom(pd.DataFrame):
     _categories = {'symbol': str, 'set': np.int64, 'molecule': np.int64,
                    'label': np.int64}
     _columns = ['x', 'y', 'z', 'symbol']
-    def __init__(self, atom, **kwargs):
-        super().__init__(atom)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self[['x','y','z']] = self[['x','y','z']].astype(float)
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -228,6 +228,7 @@ def compute_frame_from_atom(atom):
     Returns:
         frame (:class:`~exatomic.frame.Frame`): Minimal frame table
     """
+    atom = Atom(atom)
     frame = atom.cardinal_groupby().size().to_frame()
     frame.index = frame.index.astype(np.int64)
     frame.columns = ['atom_count']

@@ -4,6 +4,7 @@ import getopt
 import inspect
 import signal as sig
 import psutil
+import parseMD
 
 def usage():
     print("USAGE:"+"\n"+
@@ -113,10 +114,11 @@ def main():
             required = {'ParseDynamics': ['MD_ENGINE','traj_dir','sample_freq','timestep','celldm'],
                         'SpinRotation': ['mol_type','C_SR']}
             dynpy_params = read_input(args[0],required)
-            
+            PD = dynpy_params.ParseDynamics
+            SR = dynpy_params.SpinRotation
+            us,vels = parseMD.PARSE_MD(PD)
             import SRparse
-            
-            SRparse.SR_module_main(dynpy_params.ParseDynamics,dynpy_params.SpinRotation)
+            SRparse.SR_module_main(us,vels,PD,SR)
         
         elif opt in ("-d","--DDrelax"):
             import ddrax

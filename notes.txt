@@ -3,3 +3,6 @@ todo:
 eliminate exatomic dependence for qe MD parsing
 
 check dynpy.py for required input argument checking
+
+default vars/behavior for:
+sampling_freq

@@ -24,20 +24,27 @@ class ParseDynamics:
     #celldm = 23.46 #Simulation cell dimension in bohr. May be any expression returning floating point value
 
      MD_ENGINE = 'Tinker'
+     traj_dir = './example-data/tinker/methane/'
      #traj_dir = './example-data/tinker/water/vapor/101kpa/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-     traj_dir = './example-data/tinker/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-     ntraj = 1 #number of trajectories to parse
-     nat = 384
-     start_prod = 0 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-     end_prod = 100
+     #traj_dir = './example-data/tinker/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
+     #ntraj = 1 #number of trajectories to parse
+     nat = 1000
+     start_prod = 100 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
+     end_prod = 2100
      md_print_freq = 1
      sample_freq = 1 #number of steps between sampled snapshots. Keep high for testing
-     #celldm = 216.86/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
-     celldm = 16.22/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
-     nmol = 1
-     timestep = 0.2 #timestep of MD in picoseconds. May be any expression returning floating point value
-     parse_vel=False
+     celldm = 45.9/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
+     timestep = 0.01 #timestep of MD in picoseconds. May be any expression returning floating point value
+     #parse_vel=False
 
+class SpinRotation:
+    mol_type = 'methane'
+    nmol = 100
+    C_SR = [16.495,16.495,-1.875]
+    sample_freq = 10
+    #mol_type = 'water'
+    #nmol = 64
+    #C_SR = [33.46,36.9377,35.546]
 
 class Snapshots:  #Input parameters file for neighbors.py. Used for parsing qe aiMD, making clusters, and writing inputs for ADF/QE-GIPAW
     write_ADF = True #If True, write input files for ADF EFG calcs
@@ -51,11 +58,6 @@ class Snapshots:  #Input parameters file for neighbors.py. Used for parsing qe a
     scratch = '/gpfs/scratch' #Scratch space to use for EFG calculations
     skip_compute_neighbors = False #If True, write new ADF inputs from existing xyz data from previous run. Use only if .xyz files exist and you know they are computed correctly
 
-
-class SpinRotation:
-    mol_type = 'water'
-    nmol = 64
-    C_SR = [33.46,36.9377,35.546]
 
 
 #In most cases, the following templates do not need to be changed

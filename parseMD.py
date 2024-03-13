@@ -9,10 +9,10 @@ import os
 #from exatomic import qe
 import sys
 import signal
-#from dynpy import signal_handler
+from helper import which_trajs
 from universe import Universe, Atom, Frame, Molecule, compute_frame_from_atom
 
-def PARSE_MD(traj_dir,PD):
+def PARSE_MD(PD):
     try:
         parse_vel = PD.parse_vel
     except AttributeError:
@@ -25,23 +25,30 @@ def PARSE_MD(traj_dir,PD):
         end_prod = PD.end_prod
     except AttributeError:
         end_prod = None
-
+    
+    user_time = which_trajs(PD)
+    
     if PD.MD_ENGINE == "QE":
         try:
             symbols = PD.symbols
         except AttributeError:
             print("Missing required input variable symbols in class ParseDynamics for parsing QE. See dynpy_params.py")
             sys.exit(2)
-        u,vel = parse_qe_md(traj_dir,symbols,PD.sample_freq, start_prod, end_prod, parse_vel)
-    
-    
+        for i,traj in enumerate(PD.trajs):
+            u,vel = parse_qe_md(traj,symbols,PD.sample_freq, start_prod, end_prod, parse_vel)
+            us[i] = u
+            vels[i] = vel
+      
     elif PD.MD_ENGINE == "CP2K":
         try:
             md_print_freq = PD.md_print_freq
         except AttributeError:
             print("Missing required input variable md_print_freq in class ParseDynamics for parsing CP2K. See dynpy_params.py")
             sys.exit(2)
-        u,vel = parse_cp2k_md(traj_dir, PD.sample_freq, md_print_freq, start_prod, end_prod, parse_vel)
+        for i,traj in enumerate(PD.trajs):
+            u,vel = parse_cp2k_md(traj, PD.sample_freq, md_print_freq, start_prod, end_prod, parse_vel)
+            us[i] = u
+            vels[i] = vel
     
     
     elif PD.MD_ENGINE == "Tinker":
@@ -55,7 +62,13 @@ def PARSE_MD(traj_dir,PD):
         except AttributeError:
             print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
             sys.exit(2)
-        u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel)
+        us = {}
+        vels = {}
+        for i,traj in enumerate(PD.trajs):
+            traj_dir = PD.traj_dir+traj
+            u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel)
+            us[i] = u
+            vels[i] = vel            
         #vel.to_csv("./vel.csv")
         #if parse_vel:
         #    vel = parse_tinker_vel(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
@@ -66,12 +79,7 @@ def PARSE_MD(traj_dir,PD):
         print("MD_ENGINE not provided or not known. Implemented engines are QE, CP2K, and Tinker. Do you need to parse MD trajectories?")
         sys.exit(2)
 
-    # Add the unit cell dimensions to the frame table of the universe
-    u.frame = compute_frame_from_atom(u.atom)
-    u.frame.add_cell_dm(celldm = PD.celldm)
-    u.compute_unit_atom()
-
-    return u,vel
+    return us,vels
 
 def parse_qe_md(traj_dir,symbols,sample_freq,start_prod=None,end_prod=None,parse_vel=False):
     try:
@@ -165,24 +173,28 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
         #vel.to_csv("vel.csv")
     return u, vel
 
-def _prepared(atom_data,timestep,start_prod,celldm):
-    atom = Atom(atom_data)
-    u = Universe(atom)
+def _prepared(atom_data,timestep,start_prod,end_prod,celldm):
+    u = Universe(atom_data)
+    u.atom.loc[:,'x'] = u.atom.loc[:,'x']/0.529177
+    u.atom.loc[:,'y'] = u.atom.loc[:,'y']/0.529177
+    u.atom.loc[:,'z'] = u.atom.loc[:,'z']/0.529177
     u.atom.loc[:,'label'] = u.atom.get_atom_labels()
     u.atom.loc[:,'label'] = u.atom['label'].astype(int)
     u.atom.loc[:,'frame'] = u.atom['frame'].astype(int)
-    vel = u.atom.copy()
-    vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
-    vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*timestep)
-    vel = vel.dropna(how='any')
-    u.atom = u.atom[u.atom['frame'] > start_prod]
+    
+    u.atom = u.atom[(u.atom['frame'] >= start_prod) & (u.atom['frame'] <= end_prod)]
+
+    vel = pd.DataFrame()    
+    #vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
+    #vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*timestep)
+    #vel = vel.dropna(how='any')
 
     # Add the unit cell dimensions to the frame table of the universe
-    u.frame = compute_frame_from_atom(atom)
+    u.frame = compute_frame_from_atom(u.atom)
     u.frame.add_cell_dm(celldm)
     u.compute_unit_atom()
 
-    u.compute_atom_two(vector=True,bond_extra=0.9)
+    #u.compute_atom_two(vector=True,bond_extra=0.9)
     return u, vel
 
 # def parse_tinker_vel(traj_dir,nat,start,end,mod):
