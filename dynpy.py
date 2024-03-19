@@ -3,7 +3,6 @@ import os
 import getopt
 import inspect
 import signal as sig
-import psutil
 import parseMD
 
 def usage():

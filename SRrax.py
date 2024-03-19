@@ -2,7 +2,7 @@ import signal as sig
 #from dynpy import worker_init
 import pandas as pd
 import string
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 from numpy import linalg as la
 import scipy as sp
@@ -92,7 +92,7 @@ def Phi(r):
 def cart_to_spherical(atom_two):
     return pd.DataFrame.from_dict({"frame":atom_two['frame'], "time":atom_two['time'],
                                    "molecule":atom_two['molecule'],r"$\theta$":atom_two.apply(Theta, axis=1),
-                                   "$\phi$":atom_two.apply(Phi, axis=1)})
+                                   r"$\phi$":atom_two.apply(Phi, axis=1)})
 
 def Y10(theta):
     return (1/2)*np.sqrt(3/np.pi)*(np.cos(theta))
@@ -102,8 +102,8 @@ def Y20(theta):
 
 def spherical_harmonics(spherical):
     return pd.DataFrame.from_dict({"frame":spherical['frame'], "time":spherical['time'],
-                               "molecule":spherical['molecule'],"$Y_{1,0}$":Y10(spherical[r"$\theta$"]),
-                               "$Y_{2,0}$":Y20(spherical[r"$\theta$"])})
+                               "molecule":spherical['molecule'],r"$Y_{1,0}$":Y10(spherical[r"$\theta$"]),
+                               r"$Y_{2,0}$":Y20(spherical[r"$\theta$"])})
 
 
 #@jit(nopython=True,parallel=True)
@@ -222,7 +222,7 @@ def wiener_khinchin(f):
    acf = np.real(np.fft.ifft(fvi * np.conjugate(fvi))[:N])
    acf = acf/N
    return acf
-def correlate(df,columns_in=['$\omega$','$\omega_x$','$\omega_y$','$\omega_z$'],columns_out=['$G$','$G_x$','$G_y$','$G_z$'], pass_columns=['time','molecule0']):
+def correlate(df,columns_in=[r'$\omega$',r'$\omega_x$',r'$\omega_y$',r'$\omega_z$'],columns_out=['$G$','$G_x$','$G_y$','$G_z$'], pass_columns=['time','molecule0']):
     acf = df[columns_in].apply(wiener_khinchin)
     acf.columns = columns_out
     acf[pass_columns] = df[pass_columns]
@@ -328,7 +328,7 @@ def Wigner(mol_ax,mol_ax_init,mol_label,frame,return_euler=False):
     #if pass_columns:
     #    Wigner[pass_columns] = mol_ax[pass_columns]
     if return_euler:
-        Euler_df = pd.DataFrame({"frame":frame,"molecule_label":mol_label,"$\\alpha$":a,"$\\beta$":b,"$\gamma$":g},index=[0])
+        Euler_df = pd.DataFrame({"frame":frame,"molecule_label":mol_label,r"$\\alpha$":a,r"$\\beta$":b,r"$\gamma$":g},index=[0])
         #if pass_columns:
         #    Euler_df[pass_columns] = mol_ax[pass_columns]
         return Wigner, Euler_df
@@ -507,7 +507,7 @@ def adiff(df):
     dtheta = df['theta'].diff()
     dt = df['time'].diff()
     omega = dtheta/dt
-    df['$\omega$'] = omega
+    df[r'$\omega$'] = omega
     return df
 
 def spec_dens(acf,columns_in=['$G$']):

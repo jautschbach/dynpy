@@ -46,8 +46,10 @@ we would welcome a bug report with a minimal use case to reproduce it.
 - Install the following packages via `conda install <package>`:
     - pandas
     - scipy
-    - seaborn
-    - datetime
+    - numba
+    - networkx
+    - seaborn?
+    - datetime?
     
     Note, to update all conda packages:
     

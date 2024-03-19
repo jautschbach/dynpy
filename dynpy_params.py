@@ -34,7 +34,7 @@ class ParseDynamics:
      md_print_freq = 1
      sample_freq = 1 #number of steps between sampled snapshots. Keep high for testing
      celldm = 45.9/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
-     timestep = 0.01 #timestep of MD in picoseconds. May be any expression returning floating point value
+     timestep = 0.001 #timestep of MD in picoseconds. May be any expression returning floating point value
      #parse_vel=False
 
 class SpinRotation:

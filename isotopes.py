@@ -39,7 +39,7 @@ import os as _os
 import sys as _sys
 import bz2 as _bz2
 from pandas import read_json as _rj
-from exatomic.exa.static import resource as _resource
+#from exatomic.exa.static import resource as _resource
 if not hasattr(_bz2, "open"):
     _bz2.open = _bz2.BZ2File
 
@@ -134,10 +134,10 @@ def _create():
         znum = group['Z'].max()
         cov_radius = group['cov_radius'].mean()
         van_radius = group['van_radius'].mean()
-        try:
-            color = group.loc[group['af'].idxmax(), 'color']
-        except (TypeError, KeyError):
-            color = group['color'].values[0]
+        # try:
+            # color = group.loc[group['af'].idxmax(), 'color']
+        # except (TypeError, KeyError):
+        color = group['color'].values[0]
         name = group['name'].values[0]
         ele = Element(symbol, name, mass, znum, cov_radius, van_radius, color)
         # Attached isotopes
@@ -156,12 +156,34 @@ def as_df():
     """Return a dataframe of isotopes."""
     return _this.iso
 
+def staticdir():
+    """Return the location of the static data directory."""
+    root = _os.path.abspath(_os.path.dirname(__file__))
+    return _os.path.join(root, "static")
+
+
+def resource(name):
+    """
+    Return the full path of a named resource in the static directory.
+
+    If multiple files with the same name exist, **name** should contain
+    the first directory as well.
+
+    .. code-block:: python
+
+        resource("myfile")
+        resource("test01/test.txt")
+        resource("test02/test.txt")
+    """
+    for path, _, files in _os.walk(staticdir()):
+        if name in files:
+            return _os.path.abspath(_os.path.join(path, name))
 
 # Data order of isotopic (nuclear) properties:
-_resource = _resource("isotopes.json")
+resource = resource("isotopes.json")
 _columns = ("A", "Z", "af", "afu", "cov_radius", "van_radius", "g", "mass", "massu", "name",
             "eneg", "quad", "spin", "symbol", "color")
 _this = _sys.modules[__name__]         # Reference to this module
-_path = _os.path.abspath(_os.path.join(_os.path.abspath(__file__), _resource))
+_path = _os.path.abspath(_os.path.join(_os.path.abspath(__file__), resource))
 if not hasattr(_this, "H"):
     _create()

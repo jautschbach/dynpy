@@ -100,7 +100,7 @@ def prep_SR_uni1(u,vel,PD,SR):
         print("Explicit velocities not provided. Will be determined from position and timestep. If timestep is too large, these velocities will be inaccurate.")
         u.atom.frame = u.atom.frame.astype(int)
         vel = u.atom.copy()
-        vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
+        vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False,observed=False)[['x','y','z']].apply(pd.DataFrame.diff)
         vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*PD.timestep)
         vel = vel.dropna(how='any')
         u.atom = u.atom[u.atom['frame'] > PD.start_prod]
@@ -127,7 +127,7 @@ def prep_SR_uni2(u, vel, PD, SR):
     
     u.atom = u.atom[u.atom['classification'] == SR.mol_type]
     
-    labels = pd.DataFrame(u.atom.groupby('molecule').apply(lambda x: tuple(x['label'])),columns=['mol_atom_labels'])
+    labels = pd.DataFrame(u.atom.groupby('molecule',observed=False).apply(lambda x: tuple(x['label'])),columns=['mol_atom_labels'])
     labels = labels[labels['mol_atom_labels']!=()]
     molecule_labels = labels.groupby('mol_atom_labels').nunique().reset_index().reset_index().rename(columns={'index':'molecule_label'}).set_index('mol_atom_labels')
     #print(molecule_labels)
@@ -205,6 +205,6 @@ def compute_SR_rax(Jacf_mean,SR):
     #t2 = (G['$G_1$']/acf.loc[0,'$G_1$'] + G['$G_2$']/acf.loc[0,'$G_2$'])/2
     #v1 = acf.loc[0,'$G_3$']#/41341.375**2
     #v2 = (acf.loc[0,'$G_1$'] + acf.loc[0,'$G_2$'])/2#/41341.375**2
-    r = 2/3/(sp.constants.hbar**2)*(G[0]*C[0]**2 + G[1]*C[1]**2 + G[2]*C[2]**2) * (1e12)*(5.29177e-11)**4 * (1.66054e-27)**2
+    r = 2/3/(sp.constants.hbar**2)*(G.iloc[0]*C[0]**2 + G.iloc[1]*C[1]**2 + G.iloc[2]*C[2]**2) * (1e12)*(5.29177e-11)**4 * (1.66054e-27)**2
     #rax[traj] = (t1,v1,t2,v2,r)
     return r
