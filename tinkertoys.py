@@ -4,6 +4,10 @@ import pandas as pd
 from itertools import islice
 import sys
 import getopt
+import signal
+from dynpy import signal_handler
+
+#signal.signal(signal.SIGINT, signal_handler)
 
 #xyz = "/projects/jochena/adamphil/projects/Na/short/s_07/2_wfcopt/water.xyz_3"
 def usage():

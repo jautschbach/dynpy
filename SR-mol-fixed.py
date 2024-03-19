@@ -18,6 +18,10 @@ from exatomic import qe
 import math
 from SRrax import *
 import gc
+import signal as sig
+from dynpy import signal_handler
+
+#sig.signal(sig.SIGINT, signal_handler)
 
 traj = 'ss'
 scratch = "/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/"+traj+'/NVE/TIP3P/'

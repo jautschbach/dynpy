@@ -1,6 +1,8 @@
+import signal as sig
+#from dynpy import worker_init
 import pandas as pd
 import string
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 from numpy import linalg as la
 import scipy as sp
@@ -10,13 +12,35 @@ from scipy.integrate import cumtrapz
 from numba import vectorize, guvectorize, float64, complex128
 import os
 import sys
-import exa
-import exatomic
-exa.logging.disable(level=10)
-exa.logging.disable(level=20)
-from exatomic import qe
+#import exa
+#import exatomic
+#exa.logging.disable(level=10)
+#exa.logging.disable(level=20)
+#from exatomic import qe
 import math
 from multiprocessing import Pool, cpu_count
+import psutil
+
+def worker_init(parent_id):
+    #print(parent_id)
+    #parent = psutil.Process(parent_id)
+    #print(parent)
+    #print(parent.children())
+    def sig_int(signal_num, frame):
+        print(parent_id)
+        print('signal: %s' % signal_num)
+        parent = psutil.Process(parent_id)
+        for child in parent.children():
+            print(child.pid)
+            if child.pid != os.getpid():
+                print("killing child: %s" % child.pid)
+                child.kill()
+        print("killing parent: %s" % parent_id)
+        parent.kill()
+        print("suicide: %s" % os.getpid())
+        psutil.Process(os.getpid()).kill()
+        os._exit(1)
+    sig.signal(sig.SIGINT, sig_int)
 
 def applyParallel(func,dfGrouped,cpus=cpu_count(),**kwargs):
     values = kwargs.values()
@@ -28,16 +52,24 @@ def applyParallel2(func,dfGrouped1,dfGrouped2,cpus=cpu_count(),*args):
     with Pool(cpus) as p:
         ret_list = p.starmap(func, [(group1[1],group2[1],*args) for group1,group2 in zip(dfGrouped1,dfGrouped2)])
     return pd.concat(ret_list)
+
 def applyParallel3(func,dfGrouped1,dfGrouped2,dfGrouped3,cpus=cpu_count(),**kwargs):
+    parent_id = os.getppid()
     values = kwargs.values()
+    #sig.signal(sig.SIGINT, signal_handler)
     #print([(group1,group2,group3) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)])
-    with Pool(cpus) as p:
-        ret_list = p.starmap_async(func, [(group1[1],group2[1],group3[1],*values) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)]).get()
+    with Pool(cpus,worker_init(parent_id)) as p:
+        try:
+            ret_list = p.starmap_async(func, [(group1[1],group2[1],group3[1],*values) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)]).get()
+        except KeyboardInterrupt:
+        #    p.terminate()
+            sys.exit(1)
     #return ret_list
     ret = list(zip(*ret_list))
     #print(ret)
     return pd.concat(ret[0]),pd.concat(ret[1]),pd.concat(ret[2])
     #return pd.concat(ret_list)
+
 def applyParallel_D(func,dfGrouped1,dfGrouped2,dfGrouped3,cpus=cpu_count(),**kwargs):
     values = kwargs.values()
     #print([(group1,group2,*args) for group1,group2 in zip(dfGrouped1,dfGrouped2)])
@@ -60,7 +92,7 @@ def Phi(r):
 def cart_to_spherical(atom_two):
     return pd.DataFrame.from_dict({"frame":atom_two['frame'], "time":atom_two['time'],
                                    "molecule":atom_two['molecule'],r"$\theta$":atom_two.apply(Theta, axis=1),
-                                   "$\phi$":atom_two.apply(Phi, axis=1)})
+                                   r"$\phi$":atom_two.apply(Phi, axis=1)})
 
 def Y10(theta):
     return (1/2)*np.sqrt(3/np.pi)*(np.cos(theta))
@@ -70,8 +102,8 @@ def Y20(theta):
 
 def spherical_harmonics(spherical):
     return pd.DataFrame.from_dict({"frame":spherical['frame'], "time":spherical['time'],
-                               "molecule":spherical['molecule'],"$Y_{1,0}$":Y10(spherical[r"$\theta$"]),
-                               "$Y_{2,0}$":Y20(spherical[r"$\theta$"])})
+                               "molecule":spherical['molecule'],r"$Y_{1,0}$":Y10(spherical[r"$\theta$"]),
+                               r"$Y_{2,0}$":Y20(spherical[r"$\theta$"])})
 
 
 #@jit(nopython=True,parallel=True)
@@ -190,11 +222,11 @@ def wiener_khinchin(f):
    acf = np.real(np.fft.ifft(fvi * np.conjugate(fvi))[:N])
    acf = acf/N
    return acf
-def correlate(df,columns_in=['$\omega$','$\omega_x$','$\omega_y$','$\omega_z$'],columns_out=['$G$','$G_x$','$G_y$','$G_z$'], pass_columns=['time','molecule0']):
-   acf = df[columns_in].apply(wiener_khinchin)
-   acf.columns = columns_out
-   acf[pass_columns] = df[pass_columns]
-   return acf
+def correlate(df,columns_in=[r'$\omega$',r'$\omega_x$',r'$\omega_y$',r'$\omega_z$'],columns_out=['$G$','$G_x$','$G_y$','$G_z$'], pass_columns=['time','molecule0']):
+    acf = df[columns_in].apply(wiener_khinchin)
+    acf.columns = columns_out
+    acf[pass_columns] = df[pass_columns]
+    return acf
 
 #@jit(nopython=True,parallel=True)
 def Proj(a,b):
@@ -296,7 +328,7 @@ def Wigner(mol_ax,mol_ax_init,mol_label,frame,return_euler=False):
     #if pass_columns:
     #    Wigner[pass_columns] = mol_ax[pass_columns]
     if return_euler:
-        Euler_df = pd.DataFrame({"frame":frame,"molecule_label":mol_label,"$\\alpha$":a,"$\\beta$":b,"$\gamma$":g},index=[0])
+        Euler_df = pd.DataFrame({"frame":frame,"molecule_label":mol_label,r"$\\alpha$":a,r"$\\beta$":b,r"$\gamma$":g},index=[0])
         #if pass_columns:
         #    Euler_df[pass_columns] = mol_ax[pass_columns]
         return Wigner, Euler_df
@@ -336,34 +368,36 @@ def K11(J,D,c_a,c_d,pass_columns=['frame','molecule','molecule_label']):
     return Kdf
 
 def mol_fixed_coord(mol,mol_type):
-        if mol_type.casefold()=="acetonitrile":
-            CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
-            z = CN/la.norm(CN)
-            CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
-            x = plane_norm(z,CH)
-            #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-            y = plane_norm(z,x)
-            #print(x,y,z)
-            return np.array([x,y,z]).T
-        elif mol_type.casefold()=="methane":
-            z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
-            x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
-            #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-            y = plane_norm(z,x)
-            #print(np.array(x),y,z)
-            return np.array([x,y,z]).T
-        elif mol_type.casefold()=="water":
-            OH1 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==1)][['dx','dy','dz']].values.astype(float)[0]
-            OH2 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==2)][['dx','dy','dz']].values.astype(float)[0]
-            Z = -(OH1+OH2)/la.norm(OH1+OH2)
-            X = plane_norm(Z,OH1)
-            Y = plane_norm(Z,X)
-            #print(np.array(x),y,z)
-            return np.array([X,Y,Z]).T
-        else:
-            sys.exit("Only molecule types methane, water, and acetonitrile are supported")
+    if mol_type.casefold()=="acetonitrile":
+        CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
+        z = CN/la.norm(CN)
+        CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
+        x = plane_norm(z,CH)
+        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+        y = plane_norm(z,x)
+        #print(x,y,z)
+        return np.array([x,y,z]).T
+    elif mol_type.casefold()=="methane":
+        z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
+        x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
+        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+        y = plane_norm(z,x)
+        #print(np.array(x),y,z)
+        return np.array([x,y,z]).T
+    elif mol_type.casefold()=="water":
+        OH1 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==1)][['dx','dy','dz']].values.astype(float)[0]
+        OH2 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==2)][['dx','dy','dz']].values.astype(float)[0]
+        Z = -(OH1+OH2)/la.norm(OH1+OH2)
+        X = plane_norm(Z,OH1)
+        Y = plane_norm(Z,X)
+        #print(np.array(x),y,z)
+        return np.array([X,Y,Z]).T
+    else:
+        sys.exit("Only molecule types methane, water, and acetonitrile are supported")
 
 def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
+    #sig.signal(sig.SIGINT, signal_handler)
+    #signal.signal(signal.SIGINT, signal.SIG_IGN)
     #print(pos.head().values)
     #print(vel.head().values)
     #print(two.head().values)
@@ -414,6 +448,7 @@ def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
     return mol_ax_df,o_ax_df,J_cart_df
 
 def SR_func2(pos,vel,two,mol_type,mol_ax_init,return_euler=False,rot_mat=np.diag([1,1,1])):
+    #sig.signal(sig.SIGINT, signal_handler)
     #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         #print(pos)
     pos[['x','y','z']] = rel_center(pos)
@@ -472,7 +507,7 @@ def adiff(df):
     dtheta = df['theta'].diff()
     dt = df['time'].diff()
     omega = dtheta/dt
-    df['$\omega$'] = omega
+    df[r'$\omega$'] = omega
     return df
 
 def spec_dens(acf,columns_in=['$G$']):

@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../exatomic-0.6.0/exatomic"
+		}
+	],
+	"settings": {}
+}

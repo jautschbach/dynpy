@@ -7,6 +7,11 @@ from scipy import signal
 from scipy import constants
 from scipy.integrate import cumtrapz
 from numba import vectorize, jit
+import signal
+from dynpy import signal_handler
+
+#signal.signal(signal.SIGINT, signal_handler)
+
 nuc={"Na":{"Z":11,"Q":104e-31,"I":3/2,"rot_J":3.11e27,"gamma":10.4},
      "Li":{"Z":3,"Q":-40e-31,"I": 3/2,"rot_J":9.37e27,"gamma":0.17},
      "K":{"Z":19,"Q":4.9e-30,"I":3/2,"rot_J":2.19e27,"gamma":35.7},
