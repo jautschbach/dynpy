@@ -55,9 +55,8 @@ def applyParallel2(func,dfGrouped1,dfGrouped2,cpus=cpu_count(),*args):
 
 def applyParallel3(func,dfGrouped1,dfGrouped2,dfGrouped3,cpus=cpu_count(),**kwargs):
     parent_id = os.getppid()
-    values = kwargs.values()
     #sig.signal(sig.SIGINT, signal_handler)
-    #print([(group1,group2,group3) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)])
+    values = kwargs.values()
     with Pool(cpus,worker_init(parent_id)) as p:
         try:
             ret_list = p.starmap_async(func, [(group1[1],group2[1],group3[1],*values) for group1,group2,group3 in zip(dfGrouped1,dfGrouped2,dfGrouped3)]).get()
@@ -367,7 +366,11 @@ def K11(J,D,c_a,c_d,pass_columns=['frame','molecule','molecule_label']):
     Kdf[pass_columns]=J[pass_columns]
     return Kdf
 
-def mol_fixed_coord(mol,mol_type):
+def mol_fixed_coord(mol,mol_type,**kwargs):
+    for key, value in kwargs.items():
+        if key=='methyl_indeces':
+            methyl_indeces = value
+    
     if mol_type.casefold()=="acetonitrile":
         CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
         z = CN/la.norm(CN)
@@ -377,6 +380,7 @@ def mol_fixed_coord(mol,mol_type):
         y = plane_norm(z,x)
         #print(x,y,z)
         return np.array([x,y,z]).T
+    
     elif mol_type.casefold()=="methane":
         z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
         x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
@@ -384,6 +388,23 @@ def mol_fixed_coord(mol,mol_type):
         y = plane_norm(z,x)
         #print(np.array(x),y,z)
         return np.array([x,y,z]).T
+    
+    elif mol_type.casefold()=="methyl":
+        R = methyl_indeces[0]
+        C = methyl_indeces[1]
+        H1 = methyl_indeces[2]
+        H2 = methyl_indeces[3]
+        H3 = methyl_indeces[4]
+
+        RC = mol[(mol['mol-atom_index0']==R) & (mol['mol-atom_index1']==C)][['dx','dy','dz']].values.astype(float)[0]
+        CH1 = mol[(mol['mol-atom_index0']==C) & (mol['mol-atom_index1']==H1)][['dx','dy','dz']].values.astype(float)[0]
+        z = RC/la.norm(RC)
+        x = plane_norm(z,CH1)
+        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+        y = plane_norm(z,x)
+        #print(np.array(x),y,z)
+        return np.array([x,y,z]).T
+    
     elif mol_type.casefold()=="water":
         OH1 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==1)][['dx','dy','dz']].values.astype(float)[0]
         OH2 = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==2)][['dx','dy','dz']].values.astype(float)[0]
@@ -395,12 +416,9 @@ def mol_fixed_coord(mol,mol_type):
     else:
         sys.exit("Only molecule types methane, water, and acetonitrile are supported")
 
-def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
-    #sig.signal(sig.SIGINT, signal_handler)
-    #signal.signal(signal.SIGINT, signal.SIG_IGN)
-    #print(pos.head().values)
-    #print(vel.head().values)
-    #print(two.head().values)
+def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,rot_mat=np.diag([1,1,1])):
+    #print(mol_type)
+    #print(methyl_indeces)
     pos[['x','y','z']] = rel_center(pos)
     #print("pos rel to center of mass--- %s seconds ---" % (time.time() - start_time))
     vel[['x','y','z']] = rel_center(vel)
@@ -418,7 +436,7 @@ def SR_func1(pos,vel,two,mol_type,rot_mat=np.diag([1,1,1])):
     #print("la.solve--- %s seconds ---" % (time.time() - start_time))
     #o_cart_df = pd.DataFrame(o.reshape((1,3)),columns=['x','y','z'])
     #o_cart_df = o_cart_df.assign(frame=pos.frame.iloc[0],molecule=pos.molecule.iloc[0],molecule_label=pos.molecule_label.iloc[0])
-    mol_ax = mol_fixed_coord(two,mol_type)
+    mol_ax = mol_fixed_coord(two,mol_type,methyl_indeces=methyl_indeces)
     #print("construct mol_fixed--- %s seconds ---" % (time.time() - start_time))
     mol_ax_df = pd.DataFrame(mol_ax.reshape((1,9)),columns=['xx','xy','xz','yx','yy','yz','zx','zy','zz'])
     mol_ax_df = mol_ax_df.assign(frame=pos.frame.iloc[0],molecule=pos.molecule.iloc[0],molecule_label=pos.molecule_label.iloc[0])

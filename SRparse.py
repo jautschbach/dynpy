@@ -26,6 +26,7 @@ def SR_module_main(us,vels,PD,SR):
     outer_start_time = time.time()
     for u,vel in zip(us.values(),vels.values()):
         inner_start_time = time.time()
+        #print(u.atom.head())
         u,vel = prep_SR_uni1(u,vel,PD,SR)
         time1 = time.time()
         print("compute_atom_two                           --- {t:.2f} seconds ---".format(t = time1 - inner_start_time))
@@ -41,7 +42,11 @@ def SR_module_main(us,vels,PD,SR):
         time3 = time.time()
         print("group dataframes by molecule               --- {t:.2f} seconds ---".format(t = time3 - time2))
 
-        mol_ax, av_ax, J = applyParallel3(SR_func1,pos_grouped,vel_grouped,bonds_grouped,mol_type=SR.mol_type)
+        try:
+            methyl_indeces=SR.methyl_indeces
+        except ValueError:
+            methyl_indeces = None
+        mol_ax, av_ax, J = applyParallel3(SR_func1, pos_grouped, vel_grouped, bonds_grouped, mol_type=SR.mol_type, methyl_indeces=methyl_indeces)
         time4 = time.time()
         print("parallel compute angular vel,momentum      --- {t:.2f} seconds ---".format(t = time4 - time3))
 
@@ -96,6 +101,7 @@ def prep_SR_uni1(u,vel,PD,SR):
     #print(u.atom.frame.unique())
     #print(u.atom[u.atom['frame']>PD.start_prod])
     #vel.to_csv("./vel.csv")
+    #print(u.atom.tail())
     if vel.empty: # Estimate velocities from atoms and timestep
         print("Explicit velocities not provided. Will be determined from position and timestep. If timestep is too large, these velocities will be inaccurate.")
         u.atom.frame = u.atom.frame.astype(int)
@@ -103,10 +109,10 @@ def prep_SR_uni1(u,vel,PD,SR):
         vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False,observed=False)[['x','y','z']].apply(pd.DataFrame.diff)
         vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*PD.timestep)
         vel = vel.dropna(how='any')
-        u.atom = u.atom[u.atom['frame'] > PD.start_prod]
-    #print(u.atom.tail())
-    u.atom = u.atom[((u.atom['frame']-PD.start_prod) % SR.sample_freq) == 0]
-    vel = vel[((vel['frame']-PD.start_prod) % SR.sample_freq) == 0]
+        u.atom = u.atom[u.atom['frame'] > 0]
+    
+    #u.atom = u.atom[((u.atom['frame']-PD.start_prod) % SR.sample_freq) == 0]
+    #vel = vel[((vel['frame']-PD.start_prod) % SR.sample_freq) == 0]
     u.compute_atom_two(vector=True,bond_extra=0.45)
   
     return u, vel
@@ -122,6 +128,9 @@ def prep_SR_uni2(u, vel, PD, SR):
     elif SR.mol_type == 'methane':
         u.molecule.classify(('H(4)C(1)','methane',True))
         nat_per_mol = 5
+    elif SR.mol_type == 'methyl':
+        u.molecule.classify((SR.identifier,'methyl',True))
+        nat_per_mol  = np.sum([int(n) for n in SR.identifier if n.isnumeric()])
     #print(u.molecule.head(20))
     u.atom.loc[:,'classification'] = u.atom.molecule.map(u.molecule.classification)
     
@@ -148,7 +157,8 @@ def prep_SR_uni2(u, vel, PD, SR):
     #print(u.atom.head)
     #print(len(u.atom[u.atom['molecule']==0].label.values.tolist()*SR.nmol*len(u.atom.frame.unique())))
     mol_atom_labels = [n for n in range(nat_per_mol)]
-    #print(mol_atom_labels)
+    print(mol_atom_labels)
+    print(len(u.atom.frame))
     u.atom.loc[:,'mol-atom_index']=mol_atom_labels*(len(u.atom.frame)//len(mol_atom_labels))
     #print(u.atom.head())
     #print(u.atom.tail())

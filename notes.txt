@@ -6,3 +6,7 @@ check dynpy.py for required input argument checking
 
 default vars/behavior for:
 sampling_freq
+
+Generalize Acetonitrile mol_fixed_coord()
+
+std out: print current task when it starts and time when it's done

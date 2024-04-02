@@ -74,7 +74,24 @@ def PARSE_MD(PD):
         #    vel = parse_tinker_vel(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
     #elif PD.MD_ENGINE == "prepared":
     #    u, vel = _prepared(pd.read_csv(traj_dir+"methane-01-atom-table.csv")
-    
+    elif PD.MD_ENGINE == "xyz":
+        try:
+            md_print_freq = PD.md_print_freq
+        except AttributeError:
+            print("Missing required input variable md_print_freq in class ParseDynamics for parsing Tinker. See dynpy_params.py")
+            sys.exit(2)
+        try:
+            nat = PD.nat
+        except AttributeError:
+            print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
+            sys.exit(2)
+        us = {}
+        vels = {}
+        for i,traj in enumerate(PD.trajs):
+            traj_dir = PD.traj_dir+traj
+            u,vel = parse_xyz(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel)
+            us[i] = u
+            vels[i] = vel
     else:
         print("MD_ENGINE not provided or not known. Implemented engines are QE, CP2K, and Tinker. Do you need to parse MD trajectories?")
         sys.exit(2)
@@ -173,6 +190,44 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
         #vel.to_csv("vel.csv")
     return u, vel
 
+def parse_xyz(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, end_prod=None, parse_vel=True):
+    xyz = list(filter(lambda x: ".xyz" in x, os.listdir(traj_dir)))[0]
+    cols = ['symbol','x','y','z']
+    #read from .xyz and eliminate comment lines
+    atom = pd.read_csv(traj_dir+'/'+xyz, sep=r'\s+', usecols=[0,1,2,3],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':str,'x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)//sample_freq+1))
+    atom.loc[:,'symbol']=atom.loc[:,'symbol'].apply(normsym)
+    atom.loc[:,'frame']=atom.index//nat
+    #print(atom.head())
+    atom.loc[:,'x'] = atom.loc[:,'x'].apply(d_to_e)/0.529177
+    atom.loc[:,'y'] = atom.loc[:,'y'].apply(d_to_e)/0.529177
+    atom.loc[:,'z'] = atom.loc[:,'z'].apply(d_to_e)/0.529177
+    
+    u = Universe(Atom(atom))
+    #u.atom = atom
+
+    u.atom.loc[:,'label'] = u.atom.get_atom_labels()
+    u.atom.loc[:,'label'] = u.atom['label'].astype(int)
+    #u.atom.loc[:,['x','y','z']] = u.atom[['x','y','z']].astype(float)
+    #print(u.atom.tail())
+    vel=pd.DataFrame()
+    if parse_vel:
+        vel_file = list(filter(lambda x: "vel" in x, os.listdir(traj_dir)))[0]
+        cols = ['symbol','x','y','z']
+        #read from .vel and eliminate comment lines
+        velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[0,1,2,3],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+1))  |  (x%(nat+1)==0) | (x%(nat+1)==1) | ((x//(nat+1)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)//sample_freq+1))
+        velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
+        velatom.loc[:,'frame']=velatom.index//nat
+        velatom.loc[:,'x'] = velatom.loc[:,'x'].apply(d_to_e)/0.529177
+        velatom.loc[:,'y'] = velatom.loc[:,'y'].apply(d_to_e)/0.529177
+        velatom.loc[:,'z'] = velatom.loc[:,'z'].apply(d_to_e)/0.529177
+        velu = Universe(Atom=Atom(velatom))
+        #velu.atom = velatom
+        velu.atom.loc[:,'label'] = velu.atom.get_atom_labels()
+        velu.atom.loc[:,'label'] = velu.atom['label'].astype(int)       
+        vel = velu.atom
+        #vel.to_csv("vel.csv")
+    return u, vel
+
 def _prepared(atom_data,timestep,start_prod,end_prod,celldm):
     u = Universe(atom_data)
     u.atom.loc[:,'x'] = u.atom.loc[:,'x']/0.529177
@@ -213,7 +268,7 @@ def _prepared(atom_data,timestep,start_prod,end_prod,celldm):
 def normsym(sym):
     sym=str(sym)
     if len(sym) > 1:
-       if(sym[1].isupper()):
+       if((sym[1].isupper()) | sym[1].isnumeric()):
           sym = sym[0]
     return sym
 
