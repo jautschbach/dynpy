@@ -24,13 +24,13 @@ class ParseDynamics:
     #celldm = 23.46 #Simulation cell dimension in bohr. May be any expression returning floating point value
 
      MD_ENGINE = 'xyz'
-     traj_dir = '../fsu/jerschow-trajectories/'
+     traj_dir = '../jerschow-trajectories/'
      #traj_dir = './example-data/tinker/water/vapor/101kpa/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
      #traj_dir = './example-data/tinker/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
      #ntraj = 1 #number of trajectories to parse
      nat = 1302
-     start_prod = 100 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-     end_prod = 200
+     start_prod = 1 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
+     end_prod = 100
      md_print_freq = 1
      sample_freq = 1 #number of steps between sampled snapshots. Keep high for testing
      celldm = 50/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
@@ -43,7 +43,7 @@ class SpinRotation:
     methyl_indeces = [1,10,11,12,13] #Indeces of atoms that make up the methyl group of interest in the molecule, including the alpha carbon which must start the sequence.
     #Indexing is zero-based and is relative to a single molecular unit. All molecules in the system must have atoms ordered the same way!
     
-    nmol = 1
+    nmol = 10
     C_SR = [16.495,16.495,-1.875]
     
     #mol_type = 'water'
