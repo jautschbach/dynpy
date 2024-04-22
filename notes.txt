@@ -6,6 +6,7 @@ check dynpy.py for required input argument checking
 
 default vars/behavior for:
 sampling_freq
+start/end prod
 
 Generalize Acetonitrile mol_fixed_coord()
 

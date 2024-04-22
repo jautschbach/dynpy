@@ -44,7 +44,7 @@ def SR_module_main(us,vels,PD,SR):
 
         try:
             methyl_indeces=SR.methyl_indeces
-        except ValueError:
+        except AttributeError:
             methyl_indeces = None
         mol_ax, av_ax, J = applyParallel3(SR_func1, pos_grouped, vel_grouped, bonds_grouped, mol_type=SR.mol_type, methyl_indeces=methyl_indeces)
         time4 = time.time()
@@ -68,7 +68,7 @@ def SR_module_main(us,vels,PD,SR):
         
         J_acfs = applyParallel(correlate,J.groupby('molecule_label'),columns_in=['x','y','z'],columns_out=['$J_{x}$','$J_{y}$','$J_{z}$'],pass_columns=['frame','molecule_label','molecule'])
         Jacf_mean=J_acfs.groupby('frame').apply(np.mean, axis=0)
-        Jacf_mean['time']=Jacf_mean['frame']*PD.timestep
+        Jacf_mean['time']=Jacf_mean['frame']*PD.timestep*PD.md_print_freq
         time5 = time.time()
         print("parallel compute acfs                      --- {t:.2f} seconds ---".format(t = time5 - time4))
 
@@ -78,7 +78,7 @@ def SR_module_main(us,vels,PD,SR):
         #av_ax.to_csv(pos_dir+'av_ax.csv')
         #J.to_csv(pos_dir+'J.csv')
 
-        #Jacf_mean.to_csv(path+out_prefix+'Jacf.csv')
+        Jacf_mean.to_csv(PD.traj_dir+'Jacf.csv')
         #print("write acf data--- %03.2s seconds ---" % (time.time() - start_time))
 
         r = compute_SR_rax(Jacf_mean,SR)
@@ -88,7 +88,7 @@ def SR_module_main(us,vels,PD,SR):
     print("Total SR Run Time         --- {t:.2f} seconds ---".format(t = time.time() - outer_start_time))
 
 
-def prep_SR_uni1(u,vel,PD,SR):
+def prep_SR_uni1(u,vel,PD,SR,pop_vel=True):
     u.atom = Atom(u.atom)
     # Add the unit cell dimensions to the frame table of the universe
     u.frame = compute_frame_from_atom(u.atom)
@@ -102,7 +102,7 @@ def prep_SR_uni1(u,vel,PD,SR):
     #print(u.atom[u.atom['frame']>PD.start_prod])
     #vel.to_csv("./vel.csv")
     #print(u.atom.tail())
-    if vel.empty: # Estimate velocities from atoms and timestep
+    if (vel.empty) and (pop_vel==True): # Estimate velocities from atoms and timestep
         print("Explicit velocities not provided. Will be determined from position and timestep. If timestep is too large, these velocities will be inaccurate.")
         u.atom.frame = u.atom.frame.astype(int)
         vel = u.atom.copy()
@@ -117,8 +117,10 @@ def prep_SR_uni1(u,vel,PD,SR):
   
     return u, vel
         
-def prep_SR_uni2(u, vel, PD, SR):
+def prep_SR_uni2(u, vel, PD, SR, pop_vel=True):
+    #print(u.atom)
     u.compute_molecule()
+    #print(u.molecule.head(20))
     if SR.mol_type == 'water':
         u.molecule.classify(('H(2)O(1)','water',True))
         nat_per_mol = 3
@@ -131,7 +133,7 @@ def prep_SR_uni2(u, vel, PD, SR):
     elif SR.mol_type == 'methyl':
         u.molecule.classify((SR.identifier,'methyl',True))
         nat_per_mol  = np.sum([int(n) for n in SR.identifier if n.isnumeric()])
-    #print(u.molecule.head(20))
+
     u.atom.loc[:,'classification'] = u.atom.molecule.map(u.molecule.classification)
     
     u.atom = u.atom[u.atom['classification'] == SR.mol_type]
@@ -157,8 +159,8 @@ def prep_SR_uni2(u, vel, PD, SR):
     #print(u.atom.head)
     #print(len(u.atom[u.atom['molecule']==0].label.values.tolist()*SR.nmol*len(u.atom.frame.unique())))
     mol_atom_labels = [n for n in range(nat_per_mol)]
-    print(mol_atom_labels)
-    print(len(u.atom.frame))
+    #print(mol_atom_labels)
+    #print(len(u.atom.frame))
     u.atom.loc[:,'mol-atom_index']=mol_atom_labels*(len(u.atom.frame)//len(mol_atom_labels))
     #print(u.atom.head())
     #print(u.atom.tail())
@@ -167,12 +169,14 @@ def prep_SR_uni2(u, vel, PD, SR):
     u.atom_two.loc[:,'molecule_label1'] = u.atom_two.atom1.map(u.atom['molecule_label'])
     u.atom_two = u.atom_two[(u.atom_two['molecule_label0']<SR.nmol) & (u.atom_two['molecule_label1']<SR.nmol)]
     
-    vel.loc[:,'molecule'] = vel.index.map(u.atom['molecule'])
-    vel.dropna(how='any',inplace=True)
-    vel.sort_values(by=["molecule","label"],inplace=True)
-    vel.loc[:,'molecule_label']=u.atom.molecule_label.values
-    vel = vel[vel['molecule_label']<SR.nmol]
-    vel.loc[:,'mass'] = u.atom.loc[:,'mass'].values
+    if pop_vel==True:
+        vel.loc[:,'molecule'] = vel.index.map(u.atom['molecule'])
+        vel.loc[:,'mol-atom_index'] = vel.index.map(u.atom['mol-atom_index'])
+        vel.dropna(how='any',inplace=True)
+        vel.sort_values(by=["molecule","label"],inplace=True)
+        vel.loc[:,'molecule_label']=u.atom.molecule_label.values
+        vel = vel[vel['molecule_label']<SR.nmol]
+        vel.loc[:,'mass'] = u.atom.loc[:,'mass'].values
             
     u.atom_two.loc[:,'molecule0'] = u.atom_two.atom0.map(u.atom['molecule']).astype(int)
     u.atom_two.loc[:,'molecule1'] = u.atom_two.atom1.map(u.atom['molecule']).astype(int)

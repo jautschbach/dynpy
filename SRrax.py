@@ -199,6 +199,7 @@ def cross(pos,vel):
     #print(np.array(vel[['x','y','z']]))
     #print(pos.values)
     res = np.sum(np.cross(np.array(pos[['x','y','z']]),np.array(vel[['x','y','z']])), axis=0)
+    #print(res)
     return res
 
 def determine_center(attr, coords):
@@ -207,6 +208,7 @@ def determine_center(attr, coords):
     charge and center of mass."""
     center = 1/np.sum(attr)*np.sum(np.multiply(np.transpose(coords), attr), axis=1)
     center = pd.Series(center, index=['x', 'y', 'z'])
+    #print(center)
     return center
 def rel_center(coord):
     return coord[['x','y','z']] - determine_center(coord.mass,coord[['x','y','z']])
@@ -368,7 +370,9 @@ def K11(J,D,c_a,c_d,pass_columns=['frame','molecule','molecule_label']):
 
 def mol_fixed_coord(mol,mol_type,**kwargs):
     for key, value in kwargs.items():
-        if key=='methyl_indeces':
+        if key=='mol_plane_indeces':
+            mol_plane_indeces = value
+        if key == 'methyl_indeces':
             methyl_indeces = value
     
     if mol_type.casefold()=="acetonitrile":
@@ -395,14 +399,24 @@ def mol_fixed_coord(mol,mol_type,**kwargs):
         H1 = methyl_indeces[2]
         H2 = methyl_indeces[3]
         H3 = methyl_indeces[4]
-
+        #C1 = mol_plane_indeces[0]
+        #C2 = mol_plane_indeces[1]
+        #C3 = mol_plane_indeces[2]
         RC = mol[(mol['mol-atom_index0']==R) & (mol['mol-atom_index1']==C)][['dx','dy','dz']].values.astype(float)[0]
         CH1 = mol[(mol['mol-atom_index0']==C) & (mol['mol-atom_index1']==H1)][['dx','dy','dz']].values.astype(float)[0]
+        #CC1 = mol[(mol['mol-atom_index0']==C1) & (mol['mol-atom_index1']==C2)][['dx','dy','dz']].values.astype(float)[0]
+        #CC2 = mol[(mol['mol-atom_index0']==C1) & (mol['mol-atom_index1']==C3)][['dx','dy','dz']].values.astype(float)[0]
+
         z = RC/la.norm(RC)
         x = plane_norm(z,CH1)
-        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+        # x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
         y = plane_norm(z,x)
-        #print(np.array(x),y,z)
+        # #print(np.array(x),y,z)
+
+        #z = CC2/la.norm(CC2)
+        #x = plane_norm(z,CC2)
+        #y = plane_norm(z,x)
+
         return np.array([x,y,z]).T
     
     elif mol_type.casefold()=="water":
@@ -416,12 +430,18 @@ def mol_fixed_coord(mol,mol_type,**kwargs):
     else:
         sys.exit("Only molecule types methane, water, and acetonitrile are supported")
 
-def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,rot_mat=np.diag([1,1,1])):
+def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,mol_plane_indeces=None,rot_mat=np.diag([1,1,1])):
     #print(mol_type)
     #print(methyl_indeces)
-    pos[['x','y','z']] = rel_center(pos)
+    #print(pos.head())
+    if methyl_indeces != None:
+        pos = pos[pos['mol-atom_index'].isin(methyl_indeces)]
+        vel = vel[vel['mol-atom_index'].isin(methyl_indeces)]
+    #print(pos)
+    #print(vel)
+    pos.loc[:,['x','y','z']] = rel_center(pos)
     #print("pos rel to center of mass--- %s seconds ---" % (time.time() - start_time))
-    vel[['x','y','z']] = rel_center(vel)
+    vel.loc[:,['x','y','z']] = rel_center(vel)
     #print("vel rel to center of mass--- %s seconds ---" % (time.time() - start_time))
 
     R = make_R(pos)
@@ -431,12 +451,15 @@ def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,rot_mat=np.diag([1,1,1])):
     rv = cross(pos,vel)
     #print("cross product--- %s seconds ---" % (time.time() - start_time))
     #print(R,rv)
-
+    #print(pos)
+    #print(vel)
+    #print(rv)
     o = la.solve(R,rv)
+    #print(o)
     #print("la.solve--- %s seconds ---" % (time.time() - start_time))
     #o_cart_df = pd.DataFrame(o.reshape((1,3)),columns=['x','y','z'])
     #o_cart_df = o_cart_df.assign(frame=pos.frame.iloc[0],molecule=pos.molecule.iloc[0],molecule_label=pos.molecule_label.iloc[0])
-    mol_ax = mol_fixed_coord(two,mol_type,methyl_indeces=methyl_indeces)
+    mol_ax = mol_fixed_coord(two,mol_type,methyl_indeces=methyl_indeces, mol_plane_indeces=mol_plane_indeces)
     #print("construct mol_fixed--- %s seconds ---" % (time.time() - start_time))
     mol_ax_df = pd.DataFrame(mol_ax.reshape((1,9)),columns=['xx','xy','xz','yx','yy','yz','zx','zy','zz'])
     mol_ax_df = mol_ax_df.assign(frame=pos.frame.iloc[0],molecule=pos.molecule.iloc[0],molecule_label=pos.molecule_label.iloc[0])
