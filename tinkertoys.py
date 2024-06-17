@@ -5,7 +5,7 @@ from itertools import islice
 import sys
 import getopt
 import signal
-from dynpy import signal_handler
+#from dynpy import signal_handler
 
 #signal.signal(signal.SIGINT, signal_handler)
 
@@ -46,21 +46,25 @@ def boxsize(fname,dens,deuterated=True):
 def toxyz(fname):
     with open(fname, 'r') as f:
         lines = f.readlines()
-    #print(lines)
-    l = lines[1]
+    l0 = lines[0]
+    nat = int(l0.split()[0])
+    print(str(nat))
+    
+    #l = lines[1]
     #print(line)
-    ll = l.split()[1]
+    #ll = l.split()[1]
     #print(sym)
-    try:
-        float(ll)
-        skip = [0, 1]
-    except ValueError:
-        skip = [0]
+    #try:
+    #    float(ll)
+    #    skip = [0, 1]
+    #except ValueError:
+    #    skip = [0]
     #print(lines)
     #print(skip)
     #skip=2
 
-    df = pd.read_csv(fname, header=None, skiprows=skip, delim_whitespace=True, names=['A','B','C','D','E','F','G','H','I','J','K'])
+    
+    df = pd.read_csv(fname, header=None, skiprows=lambda x: ((x%(nat+2)==0) | (x%(nat+2)==1)), delim_whitespace=True, names=['A','B','C','D','E','F','G','H','I','J','K'])
 
     #print(df)
 
@@ -81,22 +85,18 @@ def toxyz(fname):
     #print(newsyms)
     dfxyz['B'] = newsyms
 
-    #print(dfxyz.loc[0,1][0])
-
-    #with open(fname + ".og", 'w') as f:
-    #    f.write(str(len(dfxyz)))
-    #    for row in dfxyz.iterrows():
-    #        f.write(str(row))
-
-    dfxyz.to_csv(fname + ".og", sep = ' ', header = False, index = False)
-
-    with open(fname + ".og" ,'r') as f:
-        lines = f.readlines()
-    with open(fname + ".og" ,'w') as f:
-        f.write(str(len(lines))+'\n\n')
-        for line in lines:
-            f.write(line)
-
+    try:
+        os.remove(fname+".og")
+    except FileNotFoundError:
+        pass
+    with open(fname + ".og", 'a') as f:
+        for i,row in dfxyz.iterrows():
+            l = str(row['B'])+"    "+str(row['C'])+"    "+str(row['D'])+"    "+str(row['E'])+'\n'
+            if i%nat==0:
+                f.write(str(nat)+'\n\n')
+                f.write(l)
+            else:
+                f.write(l)
 #toxyz(xyz)
 
 def shift(fname,a,r):

@@ -434,6 +434,7 @@ def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,mol_plane_indeces=None,rot
     #print(mol_type)
     #print(methyl_indeces)
     #print(pos.head())
+
     if methyl_indeces != None:
         pos = pos[pos['mol-atom_index'].isin(methyl_indeces)]
         vel = vel[vel['mol-atom_index'].isin(methyl_indeces)]
@@ -441,6 +442,7 @@ def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,mol_plane_indeces=None,rot
     #print(vel)
     pos.loc[:,['x','y','z']] = rel_center(pos)
     #print("pos rel to center of mass--- %s seconds ---" % (time.time() - start_time))
+    #if mol_type != 'methyl':
     vel.loc[:,['x','y','z']] = rel_center(vel)
     #print("vel rel to center of mass--- %s seconds ---" % (time.time() - start_time))
 
@@ -455,6 +457,20 @@ def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,mol_plane_indeces=None,rot
     #print(vel)
     #print(rv)
     o = la.solve(R,rv)
+    
+    #if mol_plane_indeces != None:
+    #    plane_pos = pos[pos['mol-atom_index'].isin(mol_plane_indeces)]
+    #    plane_vel = vel[vel['mol-atom_index'].isin(mol_plane_indeces)]
+    #    
+    #    plane_pos.loc[:,['x','y','z']] = rel_center(plane_pos)
+    #    plane_vel.loc[:,['x','y','z']] = rel_center(plane_vel)
+    #    plane_R = make_R(plane_pos)
+    #    plane_I = make_I(plane_pos)
+    #    plane_rv = cross(plane_pos,plane_vel)
+    #    plane_o = la.solve(plane_R,plane_rv)
+    #
+    #    o -= plane_o
+        
     #print(o)
     #print("la.solve--- %s seconds ---" % (time.time() - start_time))
     #o_cart_df = pd.DataFrame(o.reshape((1,3)),columns=['x','y','z'])

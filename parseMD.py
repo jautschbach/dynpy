@@ -2,11 +2,7 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 import os
-#import exa
-#import exatomic
-#exa.logging.disable(level=10)
-#exa.logging.disable(level=20)
-#from exatomic import qe
+
 import sys
 import signal
 from helper import which_trajs
@@ -52,6 +48,7 @@ def PARSE_MD(PD):
     
     
     elif PD.MD_ENGINE == "Tinker":
+        print("Tinker")
         try:
             md_print_freq = PD.md_print_freq
         except AttributeError:
@@ -155,6 +152,7 @@ def parse_cp2k_md(traj_dir, sample_freq, md_print_freq, start_prod=None, end_pro
 
 def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, end_prod=None, parse_vel=True):
     arc = list(filter(lambda x: "arc" in x, os.listdir(traj_dir)))[0]
+    print("reading "+ arc)
     cols = ['symbol','x','y','z']
     #read from .arc and eliminate comment lines
     atom = pd.read_csv(traj_dir+'/'+arc, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':str,'x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))#//sample_freq+1))
@@ -174,10 +172,12 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
     #print(u.atom.head())
     vel=pd.DataFrame()
     if parse_vel:
-        vel_file = list(filter(lambda x: "vel" in x, os.listdir(traj_dir)))[0]
+        vel_file = list(filter(lambda x: ".vel" in x, os.listdir(traj_dir)))[0]
+        #print(vel_file)
         cols = ['symbol','x','y','z']
         #read from .vel and eliminate comment lines
-        velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+1))  |  (x%(nat+1)==0) | (x%(nat+1)==1) | ((x//(nat+1)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))
+        velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))
+        #print(velatom.head())
         velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
         velatom.loc[:,'frame']=velatom.index//nat
         velatom.loc[:,'x'] = velatom.loc[:,'x'].apply(d_to_e)/0.529177
