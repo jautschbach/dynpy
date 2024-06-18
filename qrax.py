@@ -14,16 +14,83 @@ rc = {'legend.frameon': True, 'legend.fancybox': True, 'patch.facecolor': 'white
        'axes.formatter.useoffset': False, 'text.usetex': True, 'font.weight': 'bold', 'mathtext.fontset': 'stix'}
 sns.set(context='poster', style='white', font_scale=1.7, font='serif', rc=rc)
 sns.set_style("ticks")
-import exa
-import exatomic
-from exatomic import qe
+# import exa
+# import exatomic
+# from exatomic import qe
 import notebook as nb
 import math
-import signal
-from dynpy import signal_handler
+#import signal
+#from dynpy import signal_handler
 from nuc import *
 nuc_df = pd.DataFrame.from_dict(nuc)
 #signal.signal(signal.SIGINT, signal_handler)
+
+def QR_module_main(QR,label=None):
+    rawdf = read_efg_data(QR.data_set,dtype={'system':'category','traj':'i8','frame':'i8','time':'f8','label':'i8','symbol':'category','Vxx':'f8','Vxy':'f8','Vxz':'f8','Vyx':'f8','Vyy':'f8','Vyz':'f8','Vzx':'f8','Vzy':'f8','Vzz':'f8','V11':'f8','V22':'f8','V33':'f8','eta':'f8'})
+    symbol = "".join([char for char in QR.analyte if char.isalpha()])
+    
+    if QR.multiple_trajectories == False:
+        rawdf['traj'] = 1
+    if QR.index_is_frame == True:
+        rawdf['frame'] = rawdf.index.values
+        rawdf['time'] = rawdf['frame']*QR.timestep
+        rawdf['label'] = 1 
+        #print("".join([c for c in QR.analyte if c.isalpha()]))
+        rawdf['symbol'] = "".join([c for c in QR.analyte if c.isalpha()])
+        rawdf['symbol'] = rawdf['symbol'].astype('category')
+    ACFs = {}
+    res = {}
+
+    for traj, df in rawdf.groupby('traj'):
+        #print(df.head().values)
+        df = df.sort_values(by='time')
+        df['frame'] = df['frame'] - df.frame.iloc[0]
+        df['time'] = df['time'] - df.time.iloc[0]
+        if label:
+            #print(label)
+            label = int(label)
+            adf = df.groupby('label').get_group(label)
+        else:
+            adf = df.groupby('symbol').get_group(symbol)
+
+        spatial = cart_to_spatial(adf,pass_columns=['traj','system'])
+        acfs = spatial.groupby('label').apply(correlate, pass_columns=['system','symbol'])
+        #print(acfs)
+        #print(acfs.dtypes)
+        acf_mean = acfs[['frame','time','$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$']].groupby('frame').apply(np.mean,axis=0)
+        acf_mean.loc[:,'symbol'] = symbol
+
+        #print(acf_mean)
+        #print(acf_mean.dtypes)
+        ACFs[traj] = acf_mean
+
+        g = spectral_dens(acf_mean, cutoff=False, cutoff_tol=1e-3)
+        #print(g.values)
+        v = normal_factor(acf_mean)
+        t = correlation_time(g,v)
+        rax = relaxation(g,QR.analyte)
+        rax['$\\tau_{c}$'] = t['$\\tau_{c}$']
+        rax['$\\langle V(0)^2\\rangle$'] = v['$\\langle V(0)^2\\rangle$']
+
+        res[traj] = rax
+
+    rax = pd.concat(res)
+    rax.index = rax.index.droplevel(level=1)
+    #print(rax)
+    rax_mean = pd.DataFrame(rax.mean(numeric_only=True)).T
+    rax_mean.index = ["mean"]
+    #print(rax_mean)
+    rax_sem = pd.DataFrame(rax.sem(numeric_only=True)).T
+    rax_sem.index = ["err"]
+    #print(rax_sem)
+    all_rax = pd.concat([rax,rax_mean,rax_sem],sort=False)
+    acfs = pd.concat(ACFs)
+    system = QR.data_set.split('.csv')[0]
+    all_rax.to_csv(system+"-"+symbol+"-relax.csv",index_label="traj")
+    acfs.to_csv(system+"-"+symbol+"-acfs.csv",index_label="traj")
+    print("Results written to "+system+"-"+symbol+"-relax.csv")
+    return(all_rax, acfs)
+    print("Done")
 
 def read_efg_data(file_path,ensemble_average=False,dtype=None):
     rawdf = pd.read_csv(file_path,dtype=dtype)
@@ -68,7 +135,9 @@ def cart_to_spatial(cartdf,pass_columns):
                                    "label":cartdf['label'], "$R_{2,-2}$":cartdf.apply(r2_2, axis=1),
                                    "$R_{2,-1}$":cartdf.apply(r2_1, axis=1), "$R_{2,0}$":cartdf.apply(r20, axis=1),
                                    "$R_{2,1}$":cartdf.apply(r21, axis=1), "$R_{2,2}$":cartdf.apply(r22, axis=1)})
-    spatial[pass_columns] = cartdf[pass_columns]
+    for column in pass_columns:
+        if column in cartdf.columns:
+            spatial[column] = cartdf[column]
 
     return spatial
 
@@ -87,9 +156,10 @@ def correlate(df, pass_columns, columns_in=['$R_{2,-2}$', '$R_{2,-1}$', '$R_{2,0
               columns_out=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$']):
     acf = df[columns_in].apply(wiener_khinchin)
     acf.columns = columns_out
-    acf[['frame','time','label']] = df[['frame','time','label']]
-    acf[pass_columns] = df[pass_columns]
-
+    acf[['frame','time','label']] = df[['frame','time','label']].astype(float)
+    for column in pass_columns:
+        if column in df.columns:
+            acf[column] = df[column]#.astype('category')
     return acf
 
 
@@ -159,57 +229,4 @@ def relaxation(spec_dens,analyte):
 
     return pd.DataFrame.from_dict({'symbol':[spec_dens['symbol']], r'$\frac{1}{T_{1}}$':[longitudinal],r'$\frac{1}{T_{2}}$':[transverse], r'$\frac{1}{T_{iso}}$':[isotropic]})
 
-def Q_rax(efg_data,analyte,label=None):
-    rawdf = read_efg_data(efg_data,dtype={'system':'category','traj':'i8','frame':'i8','time':'f8','label':'i8','symbol':'category','Vxx':'f8','Vxy':'f8','Vxz':'f8','Vyx':'f8','Vyy':'f8','Vyz':'f8','Vzx':'f8','Vzy':'f8','Vzz':'f8','V11':'f8','V22':'f8','V33':'f8','eta':'f8'})
-    symbol = "".join([char for char in analyte if char.isalpha()])
-    ACFs = {}
-    res = {}
 
-    for traj, df in rawdf.groupby('traj'):
-        #print(df.head().values)
-        df = df.sort_values(by='time')
-        df['frame'] = df['frame'] - df.frame.iloc[0]
-        df['time'] = df['time'] - df.time.iloc[0]
-        if label:
-            #print(label)
-            label = int(label)
-            adf = df.groupby('label').get_group(label)
-        else:
-            adf = df.groupby('symbol').get_group(symbol)
-
-        spatial = cart_to_spatial(adf,pass_columns=['traj','system'])
-        acfs = spatial.groupby('label').apply(correlate, pass_columns=['traj','system','symbol','frame','time'])
-        #print(acfs.columns)
-        acf_mean = acfs.groupby('frame').apply(np.mean)
-        acf_mean.loc[:,'symbol'] = symbol
-        #print(acf_mean.columns)
-        #print(acf_mean.values)
-        ACFs[traj] = acf_mean
-
-        g = spectral_dens(acf_mean, cutoff=False, cutoff_tol=1e-3)
-        #print(g.values)
-        v = normal_factor(acf_mean)
-        t = correlation_time(g,v)
-        rax = relaxation(g,analyte)
-        rax['$\\tau_{c}$'] = t['$\\tau_{c}$']
-        rax['$\\langle V(0)^2\\rangle$'] = v['$\\langle V(0)^2\\rangle$']
-
-        res[traj] = rax
-
-    rax = pd.concat(res)
-    rax.index = rax.index.droplevel(level=1)
-    #print(rax)
-    rax_mean = pd.DataFrame(rax.mean(numeric_only=True)).T
-    rax_mean.index = ["mean"]
-    #print(rax_mean)
-    rax_sem = pd.DataFrame(rax.sem(numeric_only=True)).T
-    rax_sem.index = ["err"]
-    #print(rax_sem)
-    all_rax = rax.append(rax_mean,sort=False).append(rax_sem,sort=False)
-    acfs = pd.concat(ACFs)
-    system = efg_data.split('-efg')[0]
-    all_rax.to_csv(system+"-"+symbol+"-relax.csv",index_label="traj")
-    acfs.to_csv(system+"-"+symbol+"-acfs.csv",index_label="traj")
-    print("Results written to "+system+"-"+symbol+"-relax.csv")
-    return(all_rax, acfs)
-    print("Done")

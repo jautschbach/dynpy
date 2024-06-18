@@ -2,21 +2,17 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 import os
-#import exa
-#import exatomic
-#exa.logging.disable(level=10)
-#exa.logging.disable(level=20)
-#from exatomic import qe
+
 import sys
 import signal
 from helper import which_trajs
 from universe import Universe, Atom, Frame, Molecule, compute_frame_from_atom
 
 def PARSE_MD(PD):
-    try:
-        parse_vel = PD.parse_vel
-    except AttributeError:
-        parse_vel = False
+    #try:
+    #    parse_vel = PD.parse_vel
+    #except AttributeError:
+    #    parse_vel = False
     try:
         start_prod = PD.start_prod
     except AttributeError:
@@ -35,7 +31,7 @@ def PARSE_MD(PD):
             print("Missing required input variable symbols in class ParseDynamics for parsing QE. See dynpy_params.py")
             sys.exit(2)
         for i,traj in enumerate(PD.trajs):
-            u,vel = parse_qe_md(traj,symbols,PD.sample_freq, start_prod, end_prod, parse_vel)
+            u,vel = parse_qe_md(traj,symbols,PD.sample_freq, start_prod, end_prod)
             us[i] = u
             vels[i] = vel
       
@@ -46,12 +42,13 @@ def PARSE_MD(PD):
             print("Missing required input variable md_print_freq in class ParseDynamics for parsing CP2K. See dynpy_params.py")
             sys.exit(2)
         for i,traj in enumerate(PD.trajs):
-            u,vel = parse_cp2k_md(traj, PD.sample_freq, md_print_freq, start_prod, end_prod, parse_vel)
+            u,vel = parse_cp2k_md(traj, PD.sample_freq, md_print_freq, start_prod, end_prod)
             us[i] = u
             vels[i] = vel
     
     
     elif PD.MD_ENGINE == "Tinker":
+        print("Tinker")
         try:
             md_print_freq = PD.md_print_freq
         except AttributeError:
@@ -66,7 +63,7 @@ def PARSE_MD(PD):
         vels = {}
         for i,traj in enumerate(PD.trajs):
             traj_dir = PD.traj_dir+traj
-            u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel)
+            u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=PD.parse_vel)
             us[i] = u
             vels[i] = vel            
         #vel.to_csv("./vel.csv")
@@ -74,7 +71,25 @@ def PARSE_MD(PD):
         #    vel = parse_tinker_vel(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
     #elif PD.MD_ENGINE == "prepared":
     #    u, vel = _prepared(pd.read_csv(traj_dir+"methane-01-atom-table.csv")
-    
+    elif PD.MD_ENGINE == "xyz":
+        try:
+            md_print_freq = PD.md_print_freq
+        except AttributeError:
+            print("Missing required input variable md_print_freq in class ParseDynamics for parsing Tinker. See dynpy_params.py")
+            sys.exit(2)
+        try:
+            nat = PD.nat
+        except AttributeError:
+            print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
+            sys.exit(2)
+        us = {}
+        vels = {}
+        #print(PD.traj_dir+PD.trajs[0],PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
+        for i,traj in enumerate(PD.trajs):
+            traj_dir = PD.traj_dir+traj
+            u,vel = parse_xyz(traj_dir,PD.prefix, PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
+            us[i] = u
+            vels[i] = vel
     else:
         print("MD_ENGINE not provided or not known. Implemented engines are QE, CP2K, and Tinker. Do you need to parse MD trajectories?")
         sys.exit(2)
@@ -137,9 +152,10 @@ def parse_cp2k_md(traj_dir, sample_freq, md_print_freq, start_prod=None, end_pro
 
 def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, end_prod=None, parse_vel=True):
     arc = list(filter(lambda x: "arc" in x, os.listdir(traj_dir)))[0]
+    print("reading "+ arc)
     cols = ['symbol','x','y','z']
     #read from .arc and eliminate comment lines
-    atom = pd.read_csv(traj_dir+'/'+arc, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':str,'x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)//sample_freq+1))
+    atom = pd.read_csv(traj_dir+'/'+arc, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':str,'x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))#//sample_freq+1))
     atom.loc[:,'symbol']=atom.loc[:,'symbol'].apply(normsym)
     atom.loc[:,'frame']=atom.index//nat
     #print(atom.head())
@@ -156,16 +172,18 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
     #print(u.atom.head())
     vel=pd.DataFrame()
     if parse_vel:
-        vel_file = list(filter(lambda x: "vel" in x, os.listdir(traj_dir)))[0]
+        vel_file = list(filter(lambda x: ".vel" in x, os.listdir(traj_dir)))[0]
+        #print(vel_file)
         cols = ['symbol','x','y','z']
         #read from .vel and eliminate comment lines
-        velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+1))  |  (x%(nat+1)==0) | (x%(nat+1)==1) | ((x//(nat+1)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)//sample_freq+1))
+        velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[1,2,3,4],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))
+        #print(velatom.head())
         velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
         velatom.loc[:,'frame']=velatom.index//nat
         velatom.loc[:,'x'] = velatom.loc[:,'x'].apply(d_to_e)/0.529177
         velatom.loc[:,'y'] = velatom.loc[:,'y'].apply(d_to_e)/0.529177
         velatom.loc[:,'z'] = velatom.loc[:,'z'].apply(d_to_e)/0.529177
-        velu = Universe(Atom=Atom(velatom))
+        velu = Universe(Atom(velatom))
         #velu.atom = velatom
         velu.atom.loc[:,'label'] = velu.atom.get_atom_labels()
         velu.atom.loc[:,'label'] = velu.atom['label'].astype(int)       
@@ -173,16 +191,57 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
         #vel.to_csv("vel.csv")
     return u, vel
 
-def _prepared(atom_data,timestep,start_prod,end_prod,celldm):
+def parse_xyz(traj_dir, prefix, sample_freq, md_print_freq, nat, start_prod=None, end_prod=None, parse_vel=True):
+    xyz = prefix + '.xyz'
+    cols = ['symbol','x','y','z']
+    #read from .xyz and eliminate comment lines
+    atom = pd.read_csv(traj_dir+'/'+xyz, sep=r'\s+', usecols=[0,1,2,3],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':str,'x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))
+    atom.loc[:,'symbol']=atom.loc[:,'symbol'].apply(normsym)
+    atom.loc[:,'frame']=atom.index//nat
+    #print(atom.tail())
+    atom.loc[:,'x'] = atom.loc[:,'x'].apply(d_to_e)/0.529177
+    atom.loc[:,'y'] = atom.loc[:,'y'].apply(d_to_e)/0.529177
+    atom.loc[:,'z'] = atom.loc[:,'z'].apply(d_to_e)/0.529177
+    
+    u = Universe(Atom(atom))
+    #u.atom = atom
+
+    u.atom.loc[:,'label'] = u.atom.get_atom_labels()
+    u.atom.loc[:,'label'] = u.atom['label'].astype(int)
+    #u.atom.loc[:,['x','y','z']] = u.atom[['x','y','z']].astype(float)
+    #print(u.atom.tail())
+    vel=pd.DataFrame()
+    if parse_vel:
+        vel_file = prefix+'-vel.xyz'
+        cols = ['symbol','x','y','z']
+        #read from .vel and eliminate comment lines
+        velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[0,1,2,3],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))#//sample_freq+1))
+        velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
+        velatom.loc[:,'frame']=velatom.index//nat
+        velatom.loc[:,'x'] = velatom.loc[:,'x'].apply(d_to_e)/0.529177
+        velatom.loc[:,'y'] = velatom.loc[:,'y'].apply(d_to_e)/0.529177
+        velatom.loc[:,'z'] = velatom.loc[:,'z'].apply(d_to_e)/0.529177
+        velu = Universe(Atom(velatom))
+        #velu.atom = velatom
+        velu.atom.loc[:,'label'] = velu.atom.get_atom_labels()
+        velu.atom.loc[:,'label'] = velu.atom['label'].astype(int)       
+        vel = velu.atom
+        #vel.to_csv("vel.csv")
+    #print(u.atom.tail())
+    #print(vel.tail())
+    return u, vel
+
+def _prepared(atom_data,timestep,start_prod,end_prod,celldm,units='Angstrom'):
     u = Universe(atom_data)
-    u.atom.loc[:,'x'] = u.atom.loc[:,'x']/0.529177
-    u.atom.loc[:,'y'] = u.atom.loc[:,'y']/0.529177
-    u.atom.loc[:,'z'] = u.atom.loc[:,'z']/0.529177
+    if units=='Angstrom':
+        u.atom.loc[:,'x'] = u.atom.loc[:,'x']/0.529177
+        u.atom.loc[:,'y'] = u.atom.loc[:,'y']/0.529177
+        u.atom.loc[:,'z'] = u.atom.loc[:,'z']/0.529177
     u.atom.loc[:,'label'] = u.atom.get_atom_labels()
     u.atom.loc[:,'label'] = u.atom['label'].astype(int)
     u.atom.loc[:,'frame'] = u.atom['frame'].astype(int)
     
-    u.atom = u.atom[(u.atom['frame'] >= start_prod) & (u.atom['frame'] <= end_prod)]
+    #u.atom = u.atom[(u.atom['frame'] >= start_prod) & (u.atom['frame'] <= end_prod)]
 
     vel = pd.DataFrame()    
     #vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False)[['x','y','z']].apply(pd.DataFrame.diff)
@@ -213,7 +272,7 @@ def _prepared(atom_data,timestep,start_prod,end_prod,celldm):
 def normsym(sym):
     sym=str(sym)
     if len(sym) > 1:
-       if(sym[1].isupper()):
+       if((sym[1].isupper()) | sym[1].isnumeric()):
           sym = sym[0]
     return sym
 

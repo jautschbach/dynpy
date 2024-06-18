@@ -6,3 +6,16 @@ check dynpy.py for required input argument checking
 
 default vars/behavior for:
 sampling_freq
+start/end prod
+
+Generalize Acetonitrile mol_fixed_coord()
+
+std out: print current task when it starts and time when it's done
+
+short usage flags (-s,-d,etc) not working
+
+non-interactive mode (no prompt)
+
+exit with warning if start_prod, end_prod out of range
+
+edit pass_columns feature in function definitions to only pass existing columns

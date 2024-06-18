@@ -91,23 +91,26 @@ def main():
                 usage()
                 sys.exit(2)
         elif opt in ("-q","--Qrelax"):
+            required = {'Quadrupolar': ['data_set','analyte']}
+            dynpy_params = read_input(args[0],required)
+            QR = dynpy_params.Quadrupolar
             import qrax
-            try:
-                if args[0].isnumeric() or args[0].isalpha():
-                    print("\nMust provide designation of analyte nucleus as the mass number followed by element symbol e.g. 127I\n")
-                    usage()
-                    sys.exit(2)
-                else:
-                    analyte = args[0]
-            except IndexError:
-                print("\nMust provide designation of analyte nucleus as the mass number followed by element symbol e.g. 127I\n")
-                usage()
-                sys.exit(2)
-            try:
-                label = args[1]
-            except IndexError:
-                label = None
-            qrax.Q_rax(arg,analyte,label)
+            # try:
+            #     if args[0].isnumeric() or args[0].isalpha():
+            #         print("\nMust provide designation of analyte nucleus as the mass number followed by element symbol e.g. 127I\n")
+            #         usage()
+            #         sys.exit(2)
+            #     else:
+            #         analyte = args[0]
+            # except IndexError:
+            #     print("\nMust provide designation of analyte nucleus as the mass number followed by element symbol e.g. 127I\n")
+            #     usage()
+            #     sys.exit(2)
+            # try:
+            #     label = args[1]
+            # except IndexError:
+            #     label = None
+            qrax.QR_module_main(QR)
         
         elif opt in ("-s","--SRrelax"):
             required = {'ParseDynamics': ['MD_ENGINE','traj_dir','sample_freq','timestep','celldm'],
