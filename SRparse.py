@@ -52,7 +52,15 @@ def SR_module_main(us,vels,PD,SR):
             mol_plane_indeces=SR.mol_plane_indeces
         except AttributeError:
             mol_plane_indeces = None
-        mol_ax, av_ax, J = applyParallel3(SR_func1, pos_grouped, vel_grouped, bonds_grouped, mol_type=SR.mol_type, methyl_indeces=methyl_indeces)
+        try:
+            global_momentum=SR.global_momentum
+        except AttributeError:
+            global_momentum = False
+        #print(global_momentum)
+        #print(SR.mol_type)
+        #print(methyl_indeces)
+        #print(global_momentum)
+        mol_ax, av_ax, J = applyParallel3(SR_func1, pos_grouped, vel_grouped, bonds_grouped, mol_type=SR.mol_type, methyl_indeces=methyl_indeces,global_momentum=global_momentum)
         time4 = time.time()
         print("parallel compute angular vel,momentum      --- {t:.2f} seconds ---".format(t = time4 - time3))
 
@@ -142,6 +150,11 @@ def prep_SR_uni2(u, vel, PD, SR, pop_vel=True):
         #print([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
         nat_per_mol  = np.sum([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
         #print(nat_per_mol)
+    elif SR.mol_type == 'ring':
+        u.molecule.classify((SR.identifier,'ring',True))
+        #print([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
+        nat_per_mol  = np.sum([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
+        #print(nat_per_mol)
     u.atom.loc[:,'classification'] = u.atom.molecule.map(u.molecule.classification)
     
     u.atom = u.atom[u.atom['classification'] == SR.mol_type]
@@ -162,7 +175,7 @@ def prep_SR_uni2(u, vel, PD, SR, pop_vel=True):
     u.atom.sort_values(by=["molecule","label"],inplace=True)
     #u.atom.loc[:,'molecule_label']=list(range(len(u.atom[u.atom['frame']==u.atom.iloc[0]['frame']].molecule.values)))*len(u.atom.frame.unique())
     #u.atom.loc[:,'molecule_label']=u.atom[u.atom['frame']==u.atom.iloc[0]['frame']].molecule.values.tolist()*len(u.atom.frame.unique())
-    u.atom = u.atom[u.atom['molecule_label']<SR.nmol]
+    u.atom = u.atom[u.atom['molecule_label'] < SR.nmol]
 
     #print(u.atom.head)
     #print(len(u.atom[u.atom['molecule']==0].label.values.tolist()*SR.nmol*len(u.atom.frame.unique())))

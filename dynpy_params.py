@@ -24,34 +24,37 @@ class ParseDynamics:
     #celldm = 23.46 #Simulation cell dimension in bohr. May be any expression returning floating point value
 
     MD_ENGINE = 'Tinker'
-    traj_dir = '../jerschow-trajectories/tinker/dma/420K/'
+    traj_dir = '../jerschow-trajectories/tinker/300K/'
     trajs = ['01']
-    prefix = 'dma'
+    prefix = 'gpl'
     #traj_dir = './example-data/tinker/water/vapor/101kpa/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
     #traj_dir = './example-data/tinker/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-    #ntraj = 1 #number of trajectories to parse
-    #nat = 896
-    nat = 1408
-    start_prod = 900 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-    end_prod = 1600
+    ntraj = 1 #number of trajectories to parse
+    nat = 896
+    #nat = 1408
+    start_prod = 1 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
+    end_prod = 500
     md_print_freq = 5
     sample_freq = 1 #number of steps between sampled snapshots. Keep high for testing
-    #celldm = 22.32/0.529177 #Simulation cell dimension in bohr. May be any expression returning floating point value
-    celldm = 25.37/0.529177
+    celldm = 22.32/0.529177 #gpl #Simulation cell dimension in bohr. May be any expression returning floating point value
+    #celldm = 25.37/0.529177 #dma
     timestep = 0.001 #timestep of MD in picoseconds. May be any expression returning floating point value
-    parse_vel=True
+    #parse_vel=True
 
 class SpinRotation:
     mol_type = 'methyl'
     nmol = 64
     C_SR = [0,0,-20.23]
+    #C_SR = [-0.37401643,-0.33949459,-0.74248898]
+    #identifier = 'C(6)H(7)N(1)' #gpl
     identifier = 'C(9)H(12)O(1)'
     #methyl_indeces = [0,10,11,12,13] #Indeces of atoms that make up the methyl group of interest in the molecule, including the alpha carbon which must start the sequence.
-    methyl_indeces = [1,7,14,14,15] #dma
+    global_momentum = False
+    methyl_indeces = [1,7,13,14,15] #dma-2
+    #methyl_indeces = [3,8,16,17,18] #dma-5
     #Indexing is zero-based and is relative to a single molecular unit. All molecules in the system must have atoms ordered the same way!
     #mol_plane_indeces = [0,1,5]
     #mol_type = 'water'
-    #nmol = 64
     #C_SR = [33.46,36.9377,35.546]
 
 class Quadrupolar:
@@ -60,6 +63,15 @@ class Quadrupolar:
     multiple_trajectories = False
     timestep = 0.01015931
     index_is_frame = True
+
+
+class Dipolar:
+    #identifier = 'C(6)H(7)N(1)' #gpl
+    identifier = 'H(2)O(1)'
+    #analyte_label = 10
+    #analyte_species = '13C'
+    pair_type = 'inter'
+    rmax = 15
 
 class Snapshots:  #Input parameters file for neighbors.py. Used for parsing qe aiMD, making clusters, and writing inputs for ADF/QE-GIPAW
     write_ADF = True #If True, write input files for ADF EFG calcs

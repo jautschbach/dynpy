@@ -8,27 +8,7 @@ from scipy import constants
 from scipy.integrate import cumtrapz
 from numba import vectorize, jit
 import signal
-from dynpy import signal_handler
-
-#signal.signal(signal.SIGINT, signal_handler)
-
-nuc={"Na":{"Z":11,"Q":104e-31,"I":3/2,"rot_J":3.11e27,"gamma":10.4},
-     "Li":{"Z":3,"Q":-40e-31,"I": 3/2,"rot_J":9.37e27,"gamma":0.17},
-     "K":{"Z":19,"Q":4.9e-30,"I":3/2,"rot_J":2.19e27,"gamma":35.7},
-     "Rb":{"Z":37,"Q":2.6e-29,"I":5/2,"rot_J":1.54e27},
-     "Cs":{"Z":55,"Q":-3e-31,"I":7/2,"rot_J":0.9e27},
-     "I":{"Z":53,"Q":-.79e-28,"I":5/2,"rot_J":None},
-     "Mg":{"Z":12,"Q":2.2e-29,"I":5/2,"rot_J":1.65e27,"gamma":7.64}, 
-     "Ca":{"Z":20,"Q":2e-29,"I":7/2,"rot_J":2.0e27}, 
-     "Sr":{"Z":38,"Q":3e-29,"I":9/2,"rot_J":2.44e27}, 
-     "Cl":{"Z":17, "Q":-82e-31,"I":3/2,"rot_J":7.57e27},
-     "O":{"Z":8, "Q":-25.6e-31,"I":5/2,"rot_J":None},
-     "H":{"Z":1,"Q":2.8e-31,"I":1/2,"rot_J":None,"gamma":267.5221900e6},
-     "D":{"Z":1,"Q":2.8e-31,"I":1,"rot_J":None},
-     "N":{"Z":7, "Q":20.4e-31,"I":1,"rot_J":None},
-     "Xe":{"Z":54, "Q":-114.6e-31, "I":3/2,"rot_J":None,},
-     "129Xe":{"Z":54, "Q":0, "I":1/2,"rot_J":None,"gamma":-7.441e7}}
-nuc_df=pd.DataFrame.from_dict(nuc)
+from nuc import *
 
 #assuming internuclear vectors (dx,dy,dz)
 def V0(v):
@@ -105,10 +85,10 @@ def Y20(theta):
     return (1/4)*np.sqrt(5/np.pi)*(3*np.cos(theta)**2 - 1)
 @vectorize(nopython=True)
 def Y21(theta,phi):
-    return (-1/2)*np.sqrt(15/(2*np.pi))*np.sin(theta)*np.cos(theta)*np.exp(np.complex(0,phi))
+    return (-1/2)*np.sqrt(15/(2*np.pi))*np.sin(theta)*np.cos(theta)*np.exp(complex(0,phi))
 @vectorize(nopython=True)
 def Y22(theta,phi):
-    return (1/4)*np.sqrt(15/(2*np.pi))*np.sin(theta)**2*np.exp(np.complex(0,2*phi))
+    return (1/4)*np.sqrt(15/(2*np.pi))*np.sin(theta)**2*np.exp(complex(0,2*phi))
 @vectorize(nopython=True)
 def F0(r,Y):
     return np.sqrt(4*np.pi/5)*Y*r
@@ -241,10 +221,12 @@ def spec_dens_extr_narr(acf,dt=None,columns_in=['$G_{2,0}$', '$G_{2,1}$', '$G_{2
     
     return g
 
-def dipolar(spec_dens,symbol,extr_narr=True,single_J=False,larmor_freq=25):
-    s = nuc_df.loc['I',symbol]
-    gamma = nuc_df.loc['gamma',symbol]
-    C_d = (sp.constants.mu_0/(4*sp.constants.pi))**2*(gamma**4)*(constants.hbar**2)
+def dipolar(spec_dens,symbol1,symbol2='H',extr_narr=True,single_J=False,larmor_freq=25):
+    nuc_df = pd.DataFrame.from_dict(nuc)
+    s = nuc_df.loc['I',symbol1]
+    gamma1 = nuc_df.loc['gamma',symbol1]
+    gamma2 = nuc_df.loc['gamma',symbol2]
+    C_d = (sp.constants.mu_0/(4*sp.constants.pi))**2*(gamma1**2)*(gamma2**2)*(constants.hbar**2)
     s_const = s*(s+1)
     au_m = 5.29177e-11
     
@@ -283,10 +265,12 @@ def dipolar(spec_dens,symbol,extr_narr=True,single_J=False,larmor_freq=25):
         #j2 = spec_dens.iloc[0]['$J_{2}(\omega)$']
 
     #print(j0,j1,j2)
-    
-    R = np.real(C_d*s_const*(j1+(4*j2))*au_m**(-6)*1e-12)
+    if symbol1 == symbol2:
+        R = np.real(C_d*s_const*(j1+(4*j2))*au_m**(-6)*1e-12)
+    else:
+        R = 2/3*np.real(C_d*s_const*(j1+(4*j2))*au_m**(-6)*1e-12)
 
-    return pd.DataFrame({'$\\frac{1}{T_{1}}$':R,'$\\tau_{c}$':tc,'$\langle F(0)^{2}\\rangle$':f}, index=[symbol])
+    return R, tc, f
 
 def wiener_khinchin(f):
     #“Wiener-Khinchin theorem”
@@ -333,38 +317,6 @@ def trapzvar(var,width):
     #res = width * np.sum(var) - (var[0]+var[-1])
     #return res
     return width/2*(2*np.sum(var[1:-1]) + var[0] + var[-1])
-
-def spectral_dens(acf,dt=None,columns_in=['$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=['$g_{2,-2}$', '$g_{2,-1}$', '$g_{2,0}$', '$g_{2,1}$', '$g_{2,2}$'], cutoff=False, cutoff_tol=1e-3):
-    #print(acf)
-    if cutoff:
-        bounds=[0,0,0,0,0]
-        for l,m in enumerate(columns_in):
-            for i,b in enumerate(np.isclose(pd.Series(acf[m]/acf.iloc[0][m]).rolling(window=100).mean(),0,atol=cutoff_tol)):
-                if i == len(acf)-1:
-                    bounds[l]=len(acf)-1
-                else:
-                    if b:
-                        bounds[l]=i
-                        break
-        #print(bounds)  
-               
-        g = acf.iloc[:bounds[l]][columns_in].apply(sp.integrate.simps,x=acf.iloc[:bounds[l]]['time'])
-        #g = pd.DataFrame([np.trapz(acf.iloc[:bounds[l]][m], x=acf.iloc[:bounds[l]]['time']) for l,m in enumerate(columns_in)]).transpose()
-        #g.columns = columns_out
-        #g['$g_{iso}$'] = np.mean([g[m] for m in columns_out])
-        #g['symbol'] = acf['symbol'].iloc[0]
-        
-    else:
-        if dt:
-            g = acf[columns_in].apply(sp.integrate.simps, dx=dt)
-        else:
-            g = acf[columns_in].apply(sp.integrate.simps, x=acf['time'])
-        
-    g.index = columns_out
-    g['$g_{iso}$'] = g.mean()
-    g['symbol'] = acf['symbol'].iloc[0]
-    
-    return g
 
 def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=['$\sigma_{2,-2}$', '$\sigma_{2,-1}$', '$\sigma_{2,0}$', '$\sigma_{2,1}$', '$\sigma_{2,2}$']):
     V = acf[columns_in].iloc[0]

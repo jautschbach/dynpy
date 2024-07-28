@@ -59,11 +59,15 @@ def PARSE_MD(PD):
         except AttributeError:
             print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
             sys.exit(2)
+        try:
+            parse_vel = PD.parse_vel
+        except AttributeError:
+            parse_vel = False
         us = {}
         vels = {}
         for i,traj in enumerate(PD.trajs):
             traj_dir = PD.traj_dir+traj
-            u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=PD.parse_vel)
+            u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=parse_vel)
             us[i] = u
             vels[i] = vel            
         #vel.to_csv("./vel.csv")
@@ -82,18 +86,22 @@ def PARSE_MD(PD):
         except AttributeError:
             print("Missing required input variable nat in class ParseDynamics for parsing Tinker. See dynpy_params.py")
             sys.exit(2)
+        try:
+            parse_vel = PD.parse_vel
+        except AttributeError:
+            parse_vel = False
         us = {}
         vels = {}
         #print(PD.traj_dir+PD.trajs[0],PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
         for i,traj in enumerate(PD.trajs):
             traj_dir = PD.traj_dir+traj
-            u,vel = parse_xyz(traj_dir,PD.prefix, PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
+            u,vel = parse_xyz(traj_dir, PD.sample_freq, md_print_freq, nat, start_prod, end_prod,parse_vel=parse_vel)
             us[i] = u
             vels[i] = vel
     else:
         print("MD_ENGINE not provided or not known. Implemented engines are QE, CP2K, and Tinker. Do you need to parse MD trajectories?")
         sys.exit(2)
-
+    #print(us[0].atom)
     return us,vels
 
 def parse_qe_md(traj_dir,symbols,sample_freq,start_prod=None,end_prod=None,parse_vel=False):
@@ -191,9 +199,9 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, 
         #vel.to_csv("vel.csv")
     return u, vel
 
-def parse_xyz(traj_dir, prefix, sample_freq, md_print_freq, nat, start_prod=None, end_prod=None, parse_vel=True):
-    xyz = prefix + '.xyz'
+def parse_xyz(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, end_prod=None, parse_vel=True):
     cols = ['symbol','x','y','z']
+    xyz = list(filter(lambda x: ".xyz" in x, os.listdir(traj_dir)))[0]
     #read from .xyz and eliminate comment lines
     atom = pd.read_csv(traj_dir+'/'+xyz, sep=r'\s+', usecols=[0,1,2,3],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':str,'x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))
     atom.loc[:,'symbol']=atom.loc[:,'symbol'].apply(normsym)
@@ -212,7 +220,7 @@ def parse_xyz(traj_dir, prefix, sample_freq, md_print_freq, nat, start_prod=None
     #print(u.atom.tail())
     vel=pd.DataFrame()
     if parse_vel:
-        vel_file = prefix+'-vel.xyz'
+        vel_file = list(filter(lambda x: ".vel" in x, os.listdir(traj_dir)))[0]
         cols = ['symbol','x','y','z']
         #read from .vel and eliminate comment lines
         velatom = pd.read_csv(traj_dir+'/'+vel_file, sep=r'\s+', usecols=[0,1,2,3],names=cols,header=None,na_filter=False,skiprows=lambda x: (x<(start_prod-1)*(nat+2))  |  (x%(nat+2)==0) | (x%(nat+2)==1) | ((x//(nat+2)-start_prod+1)%sample_freq!=0),dtype={'symbol':'category','x':str,'y':str,'z':str},nrows=nat*((end_prod-start_prod)))#//sample_freq+1))

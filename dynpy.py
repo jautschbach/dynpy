@@ -121,10 +121,17 @@ def main():
             us,vels = parseMD.PARSE_MD(PD)
             import SRparse
             SRparse.SR_module_main(us,vels,PD,SR)
+
         
         elif opt in ("-d","--DDrelax"):
-            import ddrax
-            ddrax.DD_func()
+            required = {'ParseDynamics': ['MD_ENGINE','traj_dir','sample_freq','timestep','celldm'],
+                        'Dipolar':['identifier']}
+            dynpy_params = read_input(args[0],required)
+            PD = dynpy_params.ParseDynamics
+            DD = dynpy_params.Dipolar
+            us,vels = parseMD.PARSE_MD(PD)
+            import DDparse
+            DDparse.DD_module_main(us,PD,DD)
 
 if __name__ == "__main__":
     main()
