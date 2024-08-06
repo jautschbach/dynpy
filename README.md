@@ -29,20 +29,7 @@ we would welcome a bug report with a minimal use case to reproduce it.
     - Navigate to https://docs.conda.io/en/latest/miniconda.html and download the installer for your operating system. 
     - For Linux, then run the downloaded script:
      `./Miniconda3-latest-Linux-x86_64.sh`
-- exa/exatomic (https://github.com/exa-analytics):
 
-     `conda install pip`
-     
-     `pip install exa`
-     
-     `pip install exatomic`
-    - For jupyter notebook functionality:
-    
-     `conda install -c conda-forge notebook`
-     
-     `jupyter nbextension install --py --symlink --sys-prefix exatomic`
-     
-     `jupyter nbextension enable --py --sys-prefix exatomic`
 - Install the following packages via `conda install <package>`:
     - pandas
     - scipy
