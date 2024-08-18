@@ -5,10 +5,10 @@ import os
 
 import sys
 import signal
-from helper import which_trajs
+
 from universe import Universe, Atom, Frame, Molecule, compute_frame_from_atom
 
-def PARSE_MD(PD):
+def PARSE_MD(PD,traj):
     #try:
     #    parse_vel = PD.parse_vel
     #except AttributeError:
@@ -22,18 +22,17 @@ def PARSE_MD(PD):
     except AttributeError:
         end_prod = None
     
-    user_time = which_trajs(PD)
-    
+       
     if PD.MD_ENGINE == "QE":
         try:
             symbols = PD.symbols
         except AttributeError:
             print("Missing required input variable symbols in class ParseDynamics for parsing QE. See dynpy_params.py")
             sys.exit(2)
-        for i,traj in enumerate(PD.trajs):
-            u,vel = parse_qe_md(traj,symbols,PD.sample_freq, start_prod, end_prod)
-            us[i] = u
-            vels[i] = vel
+        #for i,traj in enumerate(PD.trajs):
+        u,vel = parse_qe_md(traj,symbols,PD.sample_freq, start_prod, end_prod)
+            #us[i] = u
+            #vels[i] = vel
       
     elif PD.MD_ENGINE == "CP2K":
         try:
@@ -41,14 +40,14 @@ def PARSE_MD(PD):
         except AttributeError:
             print("Missing required input variable md_print_freq in class ParseDynamics for parsing CP2K. See dynpy_params.py")
             sys.exit(2)
-        for i,traj in enumerate(PD.trajs):
-            u,vel = parse_cp2k_md(traj, PD.sample_freq, md_print_freq, start_prod, end_prod)
-            us[i] = u
-            vels[i] = vel
+        #for i,traj in enumerate(PD.trajs):
+        #u,vel = parse_cp2k_md(traj, PD.sample_freq, md_print_freq, start_prod, end_prod)
+            #us[i] = u
+            #vels[i] = vel
     
     
     elif PD.MD_ENGINE == "Tinker":
-        print("Tinker")
+        #print("Tinker")
         try:
             md_print_freq = PD.md_print_freq
         except AttributeError:
@@ -63,13 +62,13 @@ def PARSE_MD(PD):
             parse_vel = PD.parse_vel
         except AttributeError:
             parse_vel = False
-        us = {}
-        vels = {}
-        for i,traj in enumerate(PD.trajs):
-            traj_dir = PD.traj_dir+traj
-            u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=parse_vel)
-            us[i] = u
-            vels[i] = vel            
+        #us = {}
+        #vels = {}
+        #for i,traj in enumerate(PD.trajs):
+        traj_dir = PD.traj_dir+traj
+        u,vel = parse_tinker_md(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod, parse_vel=parse_vel)
+            #us[i] = u
+            #vels[i] = vel            
         #vel.to_csv("./vel.csv")
         #if parse_vel:
         #    vel = parse_tinker_vel(traj_dir,PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
@@ -90,19 +89,19 @@ def PARSE_MD(PD):
             parse_vel = PD.parse_vel
         except AttributeError:
             parse_vel = False
-        us = {}
-        vels = {}
+        #us = {}
+        #vels = {}
         #print(PD.traj_dir+PD.trajs[0],PD.sample_freq, md_print_freq, nat, start_prod, end_prod)
-        for i,traj in enumerate(PD.trajs):
-            traj_dir = PD.traj_dir+traj
-            u,vel = parse_xyz(traj_dir, PD.sample_freq, md_print_freq, nat, start_prod, end_prod,parse_vel=parse_vel)
-            us[i] = u
-            vels[i] = vel
+        #for i,traj in enumerate(PD.trajs):
+        traj_dir = PD.traj_dir+traj
+        u,vel = parse_xyz(traj_dir, PD.sample_freq, md_print_freq, nat, start_prod, end_prod,parse_vel=parse_vel)
+            #us[i] = u
+            #vels[i] = vel
     else:
         print("MD_ENGINE not provided or not known. Implemented engines are QE, CP2K, and Tinker. Do you need to parse MD trajectories?")
         sys.exit(2)
     #print(us[0].atom)
-    return us,vels
+    return u,vel
 
 def parse_qe_md(traj_dir,symbols,sample_freq,start_prod=None,end_prod=None,parse_vel=False):
     try:

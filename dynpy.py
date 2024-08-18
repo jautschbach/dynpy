@@ -3,7 +3,6 @@ import os
 import getopt
 import inspect
 import signal as sig
-import parseMD
 
 def usage():
     print("USAGE:"+"\n"+
@@ -129,9 +128,8 @@ def main():
             dynpy_params = read_input(args[0],required)
             PD = dynpy_params.ParseDynamics
             DD = dynpy_params.Dipolar
-            us,vels = parseMD.PARSE_MD(PD)
             import DDparse
-            DDparse.DD_module_main(us,PD,DD)
+            DDparse.DD_module_main(PD,DD)
 
 if __name__ == "__main__":
     main()

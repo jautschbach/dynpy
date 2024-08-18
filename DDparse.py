@@ -11,8 +11,10 @@ from ddrax import *
 from parseMD import *
 import gc
 import time
+import parseMD
+from helper import which_trajs
 
-def DD_module_main(us,PD,DD):
+def DD_module_main(PD,DD):
        outer_start_time = time.time()
 
        try:
@@ -21,111 +23,113 @@ def DD_module_main(us,PD,DD):
             analyte_label = None
 
        try:
-             analyte_species = DD.analyte_species
+            analyte_species = DD.analyte_species
        except AttributeError:
-             analyte_species = '1H'
+            analyte_species = '1H'
        
        try:
-             pair_type = DD.pair_type
-             if pair_type.casefold() not in ['intra','inter','all']:
+            pair_type = DD.pair_type
+            if pair_type.casefold() not in ['intra','inter','all']:
                    pair_type = 'all'
                    print("Inter- and intramolecular pairs will be considered.\n")
        except AttributeError:
-             pair_type = 'all'
+            pair_type = 'all'
+       
+       user_time = which_trajs(PD)
+       res = {}
+       for t,traj in enumerate(PD.trajs):
+            inner_start_time = time.time()
+            u,vel = parseMD.PARSE_MD(PD,traj)
+              
+            #traj = str(t).zfill(2)
+            #print(u.atom.head())
+            print("computing two-atom distances...")
+            u = prep_DD_uni1(u,PD,DD)
+            #print(u.atom)
+            time1 = time.time()
+            print("--- {t:.2f} seconds ---".format(t = time1 - inner_start_time))
+            gc.collect()
              
-       t = 1
-       for u in us.values():
-              inner_start_time = time.time()
-              traj = str(t).zfill(2)
-              #print(u.atom.head())
-              print("computing two-atom distances...")
-              u = prep_DD_uni1(u,PD,DD)
-              #print(u.atom)
-              time1 = time.time()
-              print("--- {t:.2f} seconds ---".format(t = time1 - inner_start_time))
-              gc.collect()
-              if pair_type == 'intra':
-                     XH = u.atom_two[u.atom_two['molecule0'] == u.atom_two['molecule1']]
-              elif pair_type == 'inter':
-                     XH = u.atom_two[u.atom_two['molecule0'] != u.atom_two['molecule1']]
-              print("intermolecular")
-              if analyte_label:
-                     XH = XH[(XH['mol-atom_index0']==analyte_label) & (XH['symbol1']=='H')]
-              else:
-                     XH = XH[(XH['symbol0']=='H') & (XH['symbol1']=='H')]
-              print("writing dists...:")
-              XH.to_csv(PD.traj_dir+"test_XH.csv")
-              #intraHH = pd.read_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/water-01-gas-intraHH.csv',
-              #                 usecols=['label0','label1','frame','time',
-              #                          'dx','dy','dz','dr','molecule0','molecule1'],
-              #                 dtype={'label0':'category','label1':'category','frame':'i8',
-              #                        'time':'f8','dx':'f8','dy':'f8','dz':'f8',
-              #                        'dr':'f8','molecule0':'i8','molecule1':'i8'})
-              #allHH = allHH[allHH['time']!='time']                        
-              #allHH = allHH.astype({'frame':'i8','time':'f8','dx':'f8','dy':'f8','dz':'f8','dr':'f8','molecule0':'i8','molecule1':'i8'})
-              #allHH = allHH[(allHH['frame']>20)]                                            
-              XH.sort_values(by='frame',inplace=True)
+            if analyte_label:
+                   XH = u.atom_two[(u.atom_two['mol-atom_index0']==analyte_label) & (u.atom_two['symbol1']=='H')]
+            else:
+                   XH = u.atom_two[(u.atom_two['symbol0']=='H') & (u.atom_two['symbol1']=='H')]
+            if pair_type == 'intra':
+                   XH = XH[XH['molecule0'] == XH['molecule1']]
+            elif pair_type == 'inter':
+                   XH = XH[XH['molecule0'] != XH['molecule1']]
+             #print("writing dists...:")
+             #XH.to_csv(PD.traj_dir+"test_XH.csv")
+             #intraHH = pd.read_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/water-01-gas-intraHH.csv',
+             #                 usecols=['label0','label1','frame','time',
+             #                          'dx','dy','dz','dr','molecule0','molecule1'],
+             #                 dtype={'label0':'category','label1':'category','frame':'i8',
+             #                        'time':'f8','dx':'f8','dy':'f8','dz':'f8',
+             #                        'dr':'f8','molecule0':'i8','molecule1':'i8'})
+             #allHH = allHH[allHH['time']!='time']                        
+             #allHH = allHH.astype({'frame':'i8','time':'f8','dx':'f8','dy':'f8','dz':'f8','dr':'f8','molecule0':'i8','molecule1':'i8'})
+             #allHH = allHH[(allHH['frame']>20)]                                            
+             #XH.sort_values(by='frame',inplace=True)
+             #interHH = allHH[allHH['molecule0']!=allHH['molecule1']]
+             #intraHH = allHH[allHH['molecule0']==allHH['molecule1']]
+             #alldd = cart_to_dipolar_from_df(allHH)
+             #alldd.to_csv('test.csv')
+             #del allHH
+             #interdd = cart_to_dipolar_from_df(interHH)
+             #del interHH
+            print("computing dipolar quantities...")
+            dd = cart_to_dipolar_from_df(XH)
+            dd.to_csv(PD.traj_dir+'test-DD.csv')
+            del XH
+            gc.collect()
+            time2 = time.time()
+            print("--- {t:.2f} seconds ---".format(t = time2 - time1))
+            #acf = alldd.reset_index().groupby(['label0','label1']).apply(correlate)
+            #del alldd
+            #interacf = interdd.reset_index().groupby(['label0','label1']).apply(correlate)
+            #del interdd
+            print("computing TCFs...")
+            acfs = dd.reset_index().groupby(['label0','label1']).apply(correlate)
+            
+            del dd
+            gc.collect()
+            time3 = time.time()
+            print("--- {t:.2f} seconds ---".format(t = time3 - time2))
+            N = len(pd.unique(acfs[['label0','label1']].values.ravel('K')))
+            #interN = len(pd.unique(interacf[['label0','label1']].values.ravel('K')))
+            #intraN = len(pd.unique(intraacf[['label0','label1']].values.ravel('K')))
 
-              #interHH = allHH[allHH['molecule0']!=allHH['molecule1']]
-              #intraHH = allHH[allHH['molecule0']==allHH['molecule1']]
-
-              #alldd = cart_to_dipolar_from_df(allHH)
-
-              #alldd.to_csv('test.csv')
-              #del allHH
-              #interdd = cart_to_dipolar_from_df(interHH)
-              #del interHH
-              print("computing dipolar quantities...")
-              dd = cart_to_dipolar_from_df(XH)
-              dd.to_csv(PD.traj_dir+'test-DD.csv')
-              del XH
-              gc.collect()
-              time2 = time.time()
-              print("--- {t:.2f} seconds ---".format(t = time2 - time1))
-              #acf = alldd.reset_index().groupby(['label0','label1']).apply(correlate)
-              #del alldd
-              #interacf = interdd.reset_index().groupby(['label0','label1']).apply(correlate)
-              #del interdd
-              print("computing TCFs...")
-              acfs = dd.reset_index().groupby(['label0','label1']).apply(correlate)
+            #acf_avg = ((acf.groupby('time')['$G_{Y2,0}$', '$G_{Y2,1}$', '$G_{Y2,2}$', '$G_{r}$','$G_{2,0}$','$G_{2,1}$','$G_{2,2}$'].sum().dropna())*2/N).reset_index()
+            #del acf
+            acf_avg = ((acfs.groupby('time')[['$G_{Y2,0}$', '$G_{Y2,1}$', '$G_{Y2,2}$', '$G_{r}$','$G_{2,0}$','$G_{2,1}$','$G_{2,2}$']].sum().dropna())*2/N).reset_index()
+            #del interacf
+            #acf_avg = acfs.groupby('time')[['$G_{Y2,0}$', '$G_{Y2,1}$', '$G_{Y2,2}$', '$G_{r}$','$G_{2,0}$','$G_{2,1}$','$G_{2,2}$']].apply(np.mean,axis=0).reset_index()
               
-              del dd
-              gc.collect()
-              time3 = time.time()
-              print("--- {t:.2f} seconds ---".format(t = time3 - time2))
-              #N = len(pd.unique(acf[['label0','label1']].values.ravel('K')))
-              #interN = len(pd.unique(interacf[['label0','label1']].values.ravel('K')))
-              #intraN = len(pd.unique(intraacf[['label0','label1']].values.ravel('K')))
+            del acfs
+            gc.collect()
 
-              #acf_avg = ((acf.groupby('time')['$G_{Y2,0}$', '$G_{Y2,1}$', '$G_{Y2,2}$', '$G_{r}$','$G_{2,0}$','$G_{2,1}$','$G_{2,2}$'].sum().dropna())*2/N).reset_index()
-              #del acf
-              #interacf_avg = ((interacf.groupby('time')['$G_{Y2,0}$', '$G_{Y2,1}$', '$G_{Y2,2}$', '$G_{r}$','$G_{2,0}$','$G_{2,1}$','$G_{2,2}$'].sum().dropna())*2/interN).reset_index()
-              #del interacf
-              acf_avg = acfs.groupby('time')[['$G_{Y2,0}$', '$G_{Y2,1}$', '$G_{Y2,2}$', '$G_{r}$','$G_{2,0}$','$G_{2,1}$','$G_{2,2}$']].apply(np.mean,axis=0).reset_index()
-              
-              del acfs
-              gc.collect()
-
-              #EN = spec_dens_extr_narr(acf_avg)
-              acf_avg.to_csv(PD.traj_dir+'test-acf.csv')
-              #del acf_avg
-              #interEN = spec_dens_extr_narr(interacf_avg)
-              #interacf_avg.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-interacf.csv')
-              #del interacf_avg
-              EN = spec_dens_extr_narr(acf_avg)
-              #intraacf_avg.to_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/DD-intra-ACF.csv')
-              #print(EN)
-              #fullrax = dipolar(EN, 'H')
-              #interrax = dipolar(interEN, 'H')
-              rax,tc,F = dipolar(EN, symbol1=analyte_species,symbol2='1H')
-              print(rax, tc, F)
-
-              #rax = fullrax.join(intrarax,lsuffix='',rsuffix='intra')
-
-              #fullrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-totalrax.csv')
-              #interrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-interrax.csv')
-              #intrarax.to_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/DD-intra-rax.csv')
-
+            #EN = spec_dens_extr_narr(acf_avg)
+            acf_avg.to_csv(PD.traj_dir+traj+'/avg-acf.csv')
+            #del acf_avg
+            #interEN = spec_dens_extr_narr(interacf_avg)
+            #interacf_avg.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-interacf.csv')
+            #del interacf_avg
+            EN = spec_dens_extr_narr(acf_avg)
+            #intraacf_avg.to_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/DD-intra-ACF.csv')
+            #print(EN)
+            #fullrax = dipolar(EN, 'H')
+            #interrax = dipolar(interEN, 'H')
+            rax,tc,F = dipolar(EN, symbol1=analyte_species,symbol2='1H')
+            print("1/T1/nH = {r:.3e} Hz, tau_c = {t:.3e} ps, <F(0)^2> = {f:.3e} au^-6".format(r=rax,t=tc,f=F))
+            print("For intramolecular case, multiply 1/T1/nH by number of bonded spins to obtain 1/T1. E.g. for C-13 in methyl group, nH=3")
+            res[traj] = [rax,tc,F]
+            #rax = fullrax.join(intrarax,lsuffix='',rsuffix='intra')
+            #fullrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-totalrax.csv')
+            #interrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-interrax.csv')
+            #intrarax.to_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/DD-intra-rax.csv')
+       res_df = pd.DataFrame(res).T
+       res_df.columns=["1/T1/nH","tau_c","<F(0)^2>"]
+       res_df.to_csv(PD.traj_dir+'DD-results.csv')
 def prep_DD_uni1(u,PD,DD):
     try:
           dmax = DD.rmax
@@ -140,7 +144,7 @@ def prep_DD_uni1(u,PD,DD):
     u.atom['label'] = u.atom.get_atom_labels()
     #u.atom[['x','y','z']] = u.atom[['x','y','z']].astype(float)
     u.atom.frame = u.atom.frame.astype(int)
-    
+
     u.compute_atom_two(dmax=dmax,vector=True,bond_extra=0.45)
     u.compute_molecule()
     u.molecule.classify((DD.identifier,'analyte',True))

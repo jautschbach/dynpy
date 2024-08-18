@@ -238,9 +238,10 @@ def dipolar(spec_dens,symbol1,symbol2='H',extr_narr=True,single_J=False,larmor_f
         return pd.DataFrame({'$\\frac{1}{T_{1}}$':R}, index=[symbol])
     
     elif extr_narr:
-        j0 = spec_dens['$j_{2,0}$']
-        j1 = spec_dens['$j_{2,1}$']
-        j2 = spec_dens['$j_{2,2}$']
+        #j0 = spec_dens['$j_{2,0}$']
+        #j1 = spec_dens['$j_{2,1}$']
+        #j2 = spec_dens['$j_{2,2}$']
+        j0 = j1 = j2 = spec_dens[['$j_{2,0}$','$j_{2,1}$','$j_{2,2}$']].mean()
         tc = spec_dens['$\\tau_{c}$']
         f = C_d*s_const*au_m**(-6)*spec_dens['$\langle F^{2}_{0}\\rangle$']
         zf = None
@@ -268,7 +269,7 @@ def dipolar(spec_dens,symbol1,symbol2='H',extr_narr=True,single_J=False,larmor_f
     if symbol1 == symbol2:
         R = np.real(C_d*s_const*(j1+(4*j2))*au_m**(-6)*1e-12)
     else:
-        R = 2/3*np.real(C_d*s_const*(j1+(4*j2))*au_m**(-6)*1e-12)
+        R = (2/3)*C_d*s_const*10*np.real(j0)*au_m**(-6)*1e-12
 
     return R, tc, f
 
