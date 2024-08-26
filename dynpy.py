@@ -117,9 +117,8 @@ def main():
             dynpy_params = read_input(args[0],required)
             PD = dynpy_params.ParseDynamics
             SR = dynpy_params.SpinRotation
-            us,vels = parseMD.PARSE_MD(PD)
             import SRparse
-            SRparse.SR_module_main(us,vels,PD,SR)
+            SRparse.SR_module_main(PD,SR)
 
         
         elif opt in ("-d","--DDrelax"):

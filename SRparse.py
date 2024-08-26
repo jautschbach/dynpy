@@ -22,13 +22,12 @@ import time
 import signal as sig
 from helper import user_confirm, which_trajs
 
-def SR_module_main(us,vels,PD,SR):
+def SR_module_main(PD,SR):
     outer_start_time = time.time()
-    t = 1
-    for u,vel in zip(us.values(),vels.values()):
-        traj = str(t).zfill(2)
+    res = {}
+    for t,traj in enumerate(PD.trajs):
         inner_start_time = time.time()
-        #print(u.atom.head())
+        u,vel = PARSE_MD(PD,traj)
         u,vel = prep_SR_uni1(u,vel,PD,SR)
         time1 = time.time()
         print("compute_atom_two                           --- {t:.2f} seconds ---".format(t = time1 - inner_start_time))
@@ -95,11 +94,15 @@ def SR_module_main(us,vels,PD,SR):
         Jacf_mean.to_csv(PD.traj_dir+traj+'/Jacf.csv')
         #print("write acf data--- %03.2s seconds ---" % (time.time() - start_time))
 
-        r = compute_SR_rax(Jacf_mean,SR,PD)
+        tx,ty,tz,r = compute_SR_rax(Jacf_mean,SR,PD)
         print("1/T1     =     {t:.4f} Hz".format(t=r))
         print("Total SR Run Time for {s}    --- {t:.2f} seconds ---".format(s = PD.traj_dir, t = time.time() - inner_start_time))
+        res[traj] = tx,ty,tz,r
+        gc.collect()
+    res_df = pd.DataFrame(res).T
+    res_df.columns=["tau_x","tau_y","tau_z","1/T1"]
+    res_df.to_csv(PD.traj_dir+'SR-results.csv')
     
-        t += 1
     print("Total SR Run Time         --- {t:.2f} seconds ---".format(t = time.time() - outer_start_time))
 
 
@@ -117,7 +120,11 @@ def prep_SR_uni1(u,vel,PD,SR,p_vel=True):
     #print(u.atom[u.atom['frame']>PD.start_prod])
     #vel.to_csv("./vel.csv")
     #print(u.atom.tail())
-    if (vel.empty) and (PD.parse_vel==False): # Estimate velocities from atoms and timestep
+    try:
+        parse_vel = PD.parse_vel
+    except AttributeError:
+        parse_vel = False
+    if (vel.empty) and (parse_vel==False): # Estimate velocities from atoms and timestep
         print("Explicit velocities not provided. Will be determined from position and timestep. If timestep is too large, these velocities will be inaccurate.")
         u.atom.frame = u.atom.frame.astype(int)
         vel = u.atom.copy()
@@ -237,16 +244,17 @@ def compute_SR_rax(Jacf_mean,SR,PD):
     #c_a = 1/3*(2*C_perp+C_par)
     #c_d = C_perp-C_par
     G = spec_dens(Jacf_mean,columns_in=['$J_{x}$','$J_{y}$','$J_{z}$'])
-    #t1 = G['$G_3$']/acf.loc[0,'$G_3$']
-    #t2 = (G['$G_1$']/acf.loc[0,'$G_1$'] + G['$G_2$']/acf.loc[0,'$G_2$'])/2
+    tx = G[0]/Jacf_mean.loc[0,'$J_{x}$']
+    ty = G[1]/Jacf_mean.loc[0,'$J_{y}$']
+    tz = G[2]/Jacf_mean.loc[0,'$J_{z}$']
     #v1 = acf.loc[0,'$G_3$']#/41341.375**2
     #v2 = (acf.loc[0,'$G_1$'] + acf.loc[0,'$G_2$'])/2#/41341.375**2
     r = 2/3/(sp.constants.hbar**2)*(G.iloc[0]*C[0]**2 + G.iloc[1]*C[1]**2 + G.iloc[2]*C[2]**2) * (1e12)*(5.29177e-11)**4 * (1.66054e-27)**2
     #rax[traj] = (t1,v1,t2,v2,r)
-    with open(PD.traj_dir+PD.prefix+"_SRrax.out",'w') as f:
-        f.write("""spectral densities:\n
-                g_x =  """+str(G[0])+"""\n
-                g_y =  """+str(G[1])+"""\n
-                g_z =  """+str(G[2])+"""\n
-                R1 =   """+str(r))
-    return r
+    #with open(PD.traj_dir+PD.prefix+"_SRrax.out",'w') as f:
+    #    f.write("""spectral densities:\n
+    #            g_x =  """+str(G[0])+"""\n
+    #            g_y =  """+str(G[1])+"""\n
+    #            g_z =  """+str(G[2])+"""\n
+    #            R1 =   """+str(r))
+    return tx,ty,tz,r
