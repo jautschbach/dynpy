@@ -22,13 +22,12 @@ import time
 import signal as sig
 from helper import user_confirm, which_trajs
 
-def SR_module_main(us,vels,PD,SR):
+def SR_module_main(PD,SR):
     outer_start_time = time.time()
-    t = 1
-    for u,vel in zip(us.values(),vels.values()):
-        traj = str(t).zfill(2)
+    res = {}
+    for t,traj in enumerate(PD.trajs):
         inner_start_time = time.time()
-        #print(u.atom.head())
+        u,vel = PARSE_MD(PD,traj)
         u,vel = prep_SR_uni1(u,vel,PD,SR)
         time1 = time.time()
         print("compute_atom_two                           --- {t:.2f} seconds ---".format(t = time1 - inner_start_time))
@@ -52,7 +51,15 @@ def SR_module_main(us,vels,PD,SR):
             mol_plane_indeces=SR.mol_plane_indeces
         except AttributeError:
             mol_plane_indeces = None
-        mol_ax, av_ax, J = applyParallel3(SR_func1, pos_grouped, vel_grouped, bonds_grouped, mol_type=SR.mol_type, methyl_indeces=methyl_indeces)
+        try:
+            global_momentum=SR.global_momentum
+        except AttributeError:
+            global_momentum = False
+        #print(global_momentum)
+        #print(SR.mol_type)
+        #print(methyl_indeces)
+        #print(global_momentum)
+        mol_ax, av_ax, J = applyParallel3(SR_func1, pos_grouped, vel_grouped, bonds_grouped, mol_type=SR.mol_type, methyl_indeces=methyl_indeces,global_momentum=global_momentum)
         time4 = time.time()
         print("parallel compute angular vel,momentum      --- {t:.2f} seconds ---".format(t = time4 - time3))
 
@@ -74,7 +81,7 @@ def SR_module_main(us,vels,PD,SR):
         
         J_acfs = applyParallel(correlate,J.groupby('molecule_label'),columns_in=['x','y','z'],columns_out=['$J_{x}$','$J_{y}$','$J_{z}$'],pass_columns=['frame','molecule_label','molecule'])
         Jacf_mean=J_acfs.groupby('frame').apply(np.mean, axis=0)
-        Jacf_mean['time']=Jacf_mean['frame']*PD.timestep*PD.md_print_freq
+        Jacf_mean['time']=Jacf_mean['frame']*PD.timestep
         time5 = time.time()
         print("parallel compute acfs                      --- {t:.2f} seconds ---".format(t = time5 - time4))
 
@@ -87,11 +94,15 @@ def SR_module_main(us,vels,PD,SR):
         Jacf_mean.to_csv(PD.traj_dir+traj+'/Jacf.csv')
         #print("write acf data--- %03.2s seconds ---" % (time.time() - start_time))
 
-        r = compute_SR_rax(Jacf_mean,SR,PD)
+        tx,ty,tz,r = compute_SR_rax(Jacf_mean,SR,PD)
         print("1/T1     =     {t:.4f} Hz".format(t=r))
-        print("Total SR Run Time for {s}    --- {t:.2f} seconds ---".format(s = PD.traj_dir, t = time.time() - inner_start_time))
+        print("Total SR Run Time for {s}    --- {t:.2f} seconds ---".format(s = PD.traj_dir+traj, t = time.time() - inner_start_time))
+        res[traj] = tx,ty,tz,r
+        gc.collect()
+    res_df = pd.DataFrame(res).T
+    res_df.columns=["tau_x","tau_y","tau_z","1/T1"]
+    res_df.to_csv(PD.traj_dir+'SR-results.csv')
     
-        t += 1
     print("Total SR Run Time         --- {t:.2f} seconds ---".format(t = time.time() - outer_start_time))
 
 
@@ -109,14 +120,18 @@ def prep_SR_uni1(u,vel,PD,SR,p_vel=True):
     #print(u.atom[u.atom['frame']>PD.start_prod])
     #vel.to_csv("./vel.csv")
     #print(u.atom.tail())
-    if (vel.empty) and (PD.parse_vel==False): # Estimate velocities from atoms and timestep
+    try:
+        parse_vel = PD.parse_vel
+    except AttributeError:
+        parse_vel = False
+    if (vel.empty) and (parse_vel==False): # Estimate velocities from atoms and timestep
         print("Explicit velocities not provided. Will be determined from position and timestep. If timestep is too large, these velocities will be inaccurate.")
         u.atom.frame = u.atom.frame.astype(int)
         vel = u.atom.copy()
         vel.loc[:,['x','y','z']] = u.atom.groupby('label',group_keys=False,observed=False)[['x','y','z']].apply(pd.DataFrame.diff)
         vel.loc[:,['x','y','z']] = vel.loc[:,['x','y','z']]/(u.atom.frame.diff().unique()[-1]*PD.timestep)
         vel = vel.dropna(how='any')
-        u.atom = u.atom[u.atom['frame'] > 0]
+        u.atom = u.atom[u.atom['frame'] > u.atom.iloc[0]['frame']]
     
     #u.atom = u.atom[((u.atom['frame']-PD.start_prod) % SR.sample_freq) == 0]
     #vel = vel[((vel['frame']-PD.start_prod) % SR.sample_freq) == 0]
@@ -142,6 +157,11 @@ def prep_SR_uni2(u, vel, PD, SR, pop_vel=True):
         #print([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
         nat_per_mol  = np.sum([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
         #print(nat_per_mol)
+    elif SR.mol_type == 'ring':
+        u.molecule.classify((SR.identifier,'ring',True))
+        #print([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
+        nat_per_mol  = np.sum([int(n) for n in SR.identifier.replace('(',')').split(')') if n.isnumeric()])
+        #print(nat_per_mol)
     u.atom.loc[:,'classification'] = u.atom.molecule.map(u.molecule.classification)
     
     u.atom = u.atom[u.atom['classification'] == SR.mol_type]
@@ -162,7 +182,7 @@ def prep_SR_uni2(u, vel, PD, SR, pop_vel=True):
     u.atom.sort_values(by=["molecule","label"],inplace=True)
     #u.atom.loc[:,'molecule_label']=list(range(len(u.atom[u.atom['frame']==u.atom.iloc[0]['frame']].molecule.values)))*len(u.atom.frame.unique())
     #u.atom.loc[:,'molecule_label']=u.atom[u.atom['frame']==u.atom.iloc[0]['frame']].molecule.values.tolist()*len(u.atom.frame.unique())
-    u.atom = u.atom[u.atom['molecule_label']<SR.nmol]
+    u.atom = u.atom[u.atom['molecule_label'] < SR.nmol]
 
     #print(u.atom.head)
     #print(len(u.atom[u.atom['molecule']==0].label.values.tolist()*SR.nmol*len(u.atom.frame.unique())))
@@ -224,16 +244,19 @@ def compute_SR_rax(Jacf_mean,SR,PD):
     #c_a = 1/3*(2*C_perp+C_par)
     #c_d = C_perp-C_par
     G = spec_dens(Jacf_mean,columns_in=['$J_{x}$','$J_{y}$','$J_{z}$'])
-    #t1 = G['$G_3$']/acf.loc[0,'$G_3$']
-    #t2 = (G['$G_1$']/acf.loc[0,'$G_1$'] + G['$G_2$']/acf.loc[0,'$G_2$'])/2
+    #print(G)
+    #print(Jacf_mean)
+    tx = G[0]/Jacf_mean.iloc[0]['$J_{x}$']
+    ty = G[1]/Jacf_mean.iloc[0]['$J_{y}$']
+    tz = G[2]/Jacf_mean.iloc[0]['$J_{z}$']
     #v1 = acf.loc[0,'$G_3$']#/41341.375**2
     #v2 = (acf.loc[0,'$G_1$'] + acf.loc[0,'$G_2$'])/2#/41341.375**2
     r = 2/3/(sp.constants.hbar**2)*(G.iloc[0]*C[0]**2 + G.iloc[1]*C[1]**2 + G.iloc[2]*C[2]**2) * (1e12)*(5.29177e-11)**4 * (1.66054e-27)**2
     #rax[traj] = (t1,v1,t2,v2,r)
-    with open(PD.traj_dir+PD.prefix+"_SRrax.out",'w') as f:
-        f.write("""spectral densities:\n
-                g_x =  """+str(G[0])+"""\n
-                g_y =  """+str(G[1])+"""\n
-                g_z =  """+str(G[2])+"""\n
-                R1 =   """+str(r))
-    return r
+    #with open(PD.traj_dir+PD.prefix+"_SRrax.out",'w') as f:
+    #    f.write("""spectral densities:\n
+    #            g_x =  """+str(G[0])+"""\n
+    #            g_y =  """+str(G[1])+"""\n
+    #            g_z =  """+str(G[2])+"""\n
+    #            R1 =   """+str(r))
+    return tx,ty,tz,r

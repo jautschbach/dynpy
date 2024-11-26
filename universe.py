@@ -1,3 +1,4 @@
+from numbers import Integral
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -7,7 +8,7 @@ from distances import cartmag, modv, compute_atom_two, sym2mass
 class Universe:
     def __init__(self, atom, **kwargs):
         self.atom = Atom(atom)
-        #self.frame = Frame.
+        #self.frame = Frame(frame)
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -17,6 +18,7 @@ class Universe:
 
     @property
     def orthorhombic(self):
+        #print(self.frame.orthorhombic())
         return self.frame.orthorhombic()
     
     def compute_atom_two(self, *args, **kwargs):
@@ -112,6 +114,51 @@ class Atom(pd.DataFrame):
         labels = pd.Series([i for nat in nats for i in range(nat)], dtype='category')
         labels.index = self.index
         return labels
+    
+    def to_xyz(self, tag='symbol', header=False, comments='', columns=None,
+               frame=None, units='Angstrom'):
+        """
+        Return atomic data in XYZ format, by default without the first 2 lines.
+        If multiple frames are specified, return an XYZ trajectory format. If
+        frame is not specified, by default returns the last frame in the table.
+
+        Args:
+            tag (str): column name to use in place of 'symbol'
+            header (bool): if True, return the first 2 lines of XYZ format
+            comment (str, list): comment(s) to put in the comment line
+            frame (int, iter): frame or frames to return
+            units (str): units (default angstroms)
+
+        Returns:
+            ret (str): XYZ formatted atomic data
+        """
+        # TODO :: this is conceptually a duplicate of XYZ.from_universe
+        columns = (tag, 'x', 'y', 'z') if columns is None else columns
+        frame = self.nframes - 1 if frame is None else frame
+        if isinstance(frame, Integral): frame = [frame]
+        if not isinstance(comments, list): comments = [comments]
+        if len(comments) == 1: comments = comments * len(frame)
+        df = self[self['frame'].isin(frame)].copy()
+        if tag not in df.columns:
+            if tag == 'Z':
+                stoz = sym2z()
+                df[tag] = df['symbol'].map(stoz)
+        df['x'] *= 0.529177 #Length['au', units]
+        df['y'] *= 0.529177 #Length['au', units]
+        df['z'] *= 0.529177 #Length['au', units]
+        grps = df.groupby('frame')
+        ret = ''
+        formatter = {tag: '{:<5}'.format}
+        stargs = {'columns': columns, 'header': False,
+                  'index': False, 'formatters': formatter}
+        t = 0
+        for _, grp in grps:
+            if not len(grp): continue
+            tru = (header or comments[t] or len(frame) > 1)
+            hdr = '\n'.join([str(len(grp)), comments[t], '']) if tru else ''
+            ret = ''.join([ret, hdr, grp.to_string(**stargs), '\n'])
+            t += 1
+        return ret
     
 class Frame(pd.DataFrame):
     """

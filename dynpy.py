@@ -3,35 +3,34 @@ import os
 import getopt
 import inspect
 import signal as sig
-import parseMD
 
 def usage():
     print("USAGE:"+"\n"+
     "-h   --help                                Displays this message"+ "\n\n"+
-    "-i   --inputs                              Generate EFG calculation inputs for ADF and/or QE-GIPAW. Requires parameters defined in neighbors_input.py"+"\n\n"+
-    "-e   --parse-efgs                          Parse EFG data from ADF or GIPAW outputs."+ "\n\n"+
-    "-q   --Qrelax                              Compute quadrupolar relaxation rates and related parameters.\n\n"+
-    "-s   --SRrelax                             Calculate 1H SR relaxation rate from MD trajectory.\n"+
-    "                                           Currently supported molecule types are 'water','acetonitrile', and 'methane'\n\n"+
-    "-d   --DDrelax")
+    "-i   --inputs <params.py>                  Generate EFG calculation inputs for ADF and/or QE-PAW."+"\n\n"+
+    "-e   --parse-efgs <params.py>              Parse EFG data from ADF or GIPAW outputs."+ "\n\n"+
+    "-q   --Qrelax <params.py>                  Compute quadrupolar relaxation rates and related parameters from EFG time series.\n\n"+
+    "-s   --SRrelax <params.py>                 Calculate SR relaxation rates and related parameters from MD trajectory.\n"+
+    "                                               Currently supported molecule types are 'water','acetonitrile', 'methane', and methyl groups\n\n"+
+    "-d   --DDrelax <params.py>                 Compute dipolar relaxation rates and related parameters from MD trajectory.")
 
 def read_input(input_arg, required):
     try:
         file = input_arg.split('.py')[0].strip('./\\')
     except:
-        print("\nPlease provide, as an argument, an input file with required paramaters. See dynpy_params.py\n")
+        print("\nPlease provide, as an argument, an input file with required paramaters.\n")
         sys.exit(2)
     try:
         dynpy_params = __import__(file)
     except ImportError:
-        print("\nInput parameter file must have .py file extension and have valid python syntax. See dynpy_params.py\n")
+        print("\nInput parameter file must have .py file extension and have valid python syntax.\n")
         sys.exit(2)
     input_classes = inspect.getmembers(dynpy_params,inspect.isclass)
     all_input_vars = [varr for clas in input_classes for varr in list(clas[1].__dict__.keys()) if "__" not in varr]
     for clas, reqs in required.items():
         for req in reqs:
             if req not in all_input_vars:
-                print("Missing required input variable %s in class %s. See dynpy_params.py" % (req,clas))
+                print("Error: Missing required input variable %s in class %s." % (req,clas))
                 sys.exit(2)
     return dynpy_params
 
@@ -43,7 +42,7 @@ def read_input(input_arg, required):
 def main():
     #signal.signal(signal.SIGINT, signal_handler)
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:e:q:s:d:",["help",'inputs','parse-efgs','Qrelax','SRrelax','DDrelax'])
+        opts, args = getopt.getopt(sys.argv[1:], "hi:e:q:s:d:",["help",'inputs=','parse-efgs=','Qrelax=','SRrelax=','DDrelax='])
     except getopt.GetoptError:
         # Print debug info
         usage()
@@ -61,38 +60,31 @@ def main():
             usage()
 
         elif opt in ("-i","--inputs"):
-            required = {'ParseDynamics': ['MD_ENGINE','traj_dir','sample_freq','timestep','celldm'],
-                        'Snapshots': ['write_ADF','write_GIPAW','nuc_symbol']}
-            dynpy_params = read_input(args[0],required)
+            required = {'ParseDynamics': ['MD_format','traj_dir','timestep','celldm','trajs','md_print_freq','nat','start_prod','end_prod'],
+                        'Snapshots': ['write_ADF','write_GIPAW']}
+            dynpy_params = read_input(arg,required)
             
             import neighbors
             neighbors.gen_inputs(dynpy_params)
 
         elif opt in ("-e","--parse-efgs"):
+            required = {'ParseEFGs': ['output_dir','engine']}
+            dynpy_params = read_input(arg,required)
+            PE = dynpy_params.ParseEFGs
             import parseEFG
-            try:
-                traj_dir = args[0]
-                system = args[1]
-            except IndexError:
-                    print("\nInsufficient arguments provided\n")
-                    usage()
-                    sys.exit(2)
-            try:
-                time_bw_frames = float(args[2])
-            except:
-                time_bw_frames = None
-            if arg == "ADF":
-                parseEFG.extract_efg_adf(traj_dir,system)
-            elif arg == "GIPAW":
-                parseEFG.extract_efg_qe(traj_dir,system,time_bw_frames)
-            elif arg == "CP2K":
-                parseEFG.extract_efg_cp2k(traj_dir,system,time_bw_frames)
+            if  PE.engine == "ADF":
+                parseEFG.extract_efg_adf(PE.output_dir,PE.prefix)
+            elif PE.engine == "QE":
+                parseEFG.extract_efg_qe(PE.output_dir,PE.prefix,PE.time_bw_frames)
+            elif PE.engine == "CP2K":
+                parseEFG.extract_efg_cp2k(PE.output_dir,PE.prefix,PE.time_bw_frames)
             else:
-                usage()
+                print("EFG engine must be ADF, QE, or CP2K")
                 sys.exit(2)
+
         elif opt in ("-q","--Qrelax"):
             required = {'Quadrupolar': ['data_set','analyte']}
-            dynpy_params = read_input(args[0],required)
+            dynpy_params = read_input(arg,required)
             QR = dynpy_params.Quadrupolar
             import qrax
             # try:
@@ -113,18 +105,23 @@ def main():
             qrax.QR_module_main(QR)
         
         elif opt in ("-s","--SRrelax"):
-            required = {'ParseDynamics': ['MD_ENGINE','traj_dir','sample_freq','timestep','celldm'],
+            required = {'ParseDynamics': ['MD_format','traj_dir','timestep','celldm','trajs','md_print_freq','nat','start_prod','end_prod'],
                         'SpinRotation': ['mol_type','C_SR']}
-            dynpy_params = read_input(args[0],required)
+            dynpy_params = read_input(arg,required)
             PD = dynpy_params.ParseDynamics
             SR = dynpy_params.SpinRotation
-            us,vels = parseMD.PARSE_MD(PD)
             import SRparse
-            SRparse.SR_module_main(us,vels,PD,SR)
+            SRparse.SR_module_main(PD,SR)
+
         
         elif opt in ("-d","--DDrelax"):
-            import ddrax
-            ddrax.DD_func()
+            required = {'ParseDynamics': ['MD_format','traj_dir','timestep','celldm','trajs','md_print_freq','nat','start_prod','end_prod'],
+                        'Dipolar':['identifier']}
+            dynpy_params = read_input(arg,required)
+            PD = dynpy_params.ParseDynamics
+            DD = dynpy_params.Dipolar
+            import DDparse
+            DDparse.DD_module_main(PD,DD)
 
 if __name__ == "__main__":
     main()

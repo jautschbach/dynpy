@@ -375,48 +375,22 @@ def mol_fixed_coord(mol,mol_type,**kwargs):
         if key == 'methyl_indeces':
             methyl_indeces = value
     
-    if mol_type.casefold()=="acetonitrile":
-        CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
-        z = CN/la.norm(CN)
-        CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
-        x = plane_norm(z,CH)
-        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-        y = plane_norm(z,x)
-        #print(x,y,z)
-        return np.array([x,y,z]).T
+    #if mol_type.casefold()=="acetonitrile":
+    #    CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
+    #    z = CN/la.norm(CN)
+    #    CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
+    #    x = plane_norm(z,CH)
+    #    #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+    #    y = plane_norm(z,x)
+    #    #print(x,y,z)
+    #    return np.array([x,y,z]).T
     
-    elif mol_type.casefold()=="methane":
+    if mol_type.casefold()=="methane":
         z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
         x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
         #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
         y = plane_norm(z,x)
         #print(np.array(x),y,z)
-        return np.array([x,y,z]).T
-    
-    elif mol_type.casefold()=="methyl":
-        R = methyl_indeces[0]
-        C = methyl_indeces[1]
-        H1 = methyl_indeces[2]
-        H2 = methyl_indeces[3]
-        H3 = methyl_indeces[4]
-        #C1 = mol_plane_indeces[0]
-        #C2 = mol_plane_indeces[1]
-        #C3 = mol_plane_indeces[2]
-        RC = mol[(mol['mol-atom_index0']==R) & (mol['mol-atom_index1']==C)][['dx','dy','dz']].values.astype(float)[0]
-        CH1 = mol[(mol['mol-atom_index0']==C) & (mol['mol-atom_index1']==H1)][['dx','dy','dz']].values.astype(float)[0]
-        #CC1 = mol[(mol['mol-atom_index0']==C1) & (mol['mol-atom_index1']==C2)][['dx','dy','dz']].values.astype(float)[0]
-        #CC2 = mol[(mol['mol-atom_index0']==C1) & (mol['mol-atom_index1']==C3)][['dx','dy','dz']].values.astype(float)[0]
-
-        z = RC/la.norm(RC)
-        x = plane_norm(z,CH1)
-        # x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-        y = plane_norm(z,x)
-        # #print(np.array(x),y,z)
-
-        #z = CC2/la.norm(CC2)
-        #x = plane_norm(z,CC2)
-        #y = plane_norm(z,x)
-
         return np.array([x,y,z]).T
     
     elif mol_type.casefold()=="water":
@@ -427,15 +401,46 @@ def mol_fixed_coord(mol,mol_type,**kwargs):
         Y = plane_norm(Z,X)
         #print(np.array(x),y,z)
         return np.array([X,Y,Z]).T
-    else:
-        sys.exit("Only molecule types methane, water, and acetonitrile are supported")
+    
+    elif mol_type.casefold()=="methyl":
+        R = methyl_indeces[0]
+        C = methyl_indeces[1]
+        H1 = methyl_indeces[2]
+        H2 = methyl_indeces[3]
+        H3 = methyl_indeces[4]
+        
+        RC = mol[(mol['mol-atom_index0']==R) & (mol['mol-atom_index1']==C)][['dx','dy','dz']].values.astype(float)[0]
+        CH1 = mol[(mol['mol-atom_index0']==C) & (mol['mol-atom_index1']==H1)][['dx','dy','dz']].values.astype(float)[0]
 
-def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,mol_plane_indeces=None,rot_mat=np.diag([1,1,1])):
+        z = RC/la.norm(RC)
+        x = plane_norm(z,CH1)
+        y = plane_norm(z,x)
+        #print(np.array([x,y,z]).T)
+        return np.array([x,y,z]).T
+    
+
+    elif mol_type.casefold()=="ring":
+        R = methyl_indeces[0]
+        C = methyl_indeces[1]
+        R1 = 1
+        RC = mol[(mol['mol-atom_index0']==R) & (mol['mol-atom_index1']==C)][['dx','dy','dz']].values.astype(float)[0]
+        RR1 = mol[(mol['mol-atom_index0']==R) & (mol['mol-atom_index1']==R1)][['dx','dy','dz']].values.astype(float)[0]
+
+        z = RC/la.norm(RC)
+        x = plane_norm(z,RR1)
+        y = plane_norm(z,x)
+        #print(np.array([x,y,z]).T)
+        return np.array([x,y,z]).T
+
+    else:
+        sys.exit("Only molecule types methane, water, acetonitrile, and methyl are supported")
+
+def SR_func1(pos,vel,two,mol_type,methyl_indeces=None,global_momentum=False,mol_plane_indeces=None,rot_mat=np.diag([1,1,1])):
     #print(mol_type)
     #print(methyl_indeces)
     #print(pos.head())
 
-    if methyl_indeces != None:
+    if ((mol_type.casefold() == 'methyl') & (global_momentum==False)):
         pos = pos[pos['mol-atom_index'].isin(methyl_indeces)]
         vel = vel[vel['mol-atom_index'].isin(methyl_indeces)]
     #print(pos)
