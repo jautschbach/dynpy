@@ -10,7 +10,7 @@ from numpy import linalg as la
 from dynpy import *
 import sys
 import signal
-from dynpy import signal_handler
+#from dynpy import signal_handler
 
 #signal.signal(signal.SIGINT, signal_handler)
 
@@ -70,7 +70,7 @@ def extract_efg_adf(traj_dir,system="ADF"):
                                           ('V11', 'f8'), ('V22', 'f8'), ('V33', 'f8'),
                                           ('Eta', 'f8'), ('ComputeTime', 'f8')])
 
-    data.fill(np.NaN)
+    data.fill(0)
     #print(data)
 
     idx=-1

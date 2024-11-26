@@ -79,7 +79,7 @@ def DD_module_main(PD,DD):
              #del interHH
             print("computing dipolar quantities...")
             dd = cart_to_dipolar_from_df(XH)
-            dd.to_csv(PD.traj_dir+'test-DD.csv')
+            #dd.to_csv(PD.traj_dir+'test-DD.csv')
             del XH
             gc.collect()
             time2 = time.time()
@@ -121,7 +121,7 @@ def DD_module_main(PD,DD):
             #interrax = dipolar(interEN, 'H')
             rax,tc,F = dipolar(EN, symbol1=analyte_species,symbol2='1H')
             print("1/T1/nH = {r:.3e} Hz, tau_c = {t:.3e} ps, <F(0)^2> = {f:.3e} au^-6".format(r=rax,t=tc,f=F))
-            print("For intramolecular case, multiply 1/T1/nH by number of bonded spins to obtain 1/T1. E.g. for C-13 in methyl group, nH=3")
+            print("For intramolecular contrib. in heteronuclear systems (e.g. C--H relaxation of 13C), multiply 1/T1/nH by number of bonded spins to obtain 1/T1. E.g. for C-13 in methyl group, nH=3")
             res[traj] = [rax,tc,F]
             #rax = fullrax.join(intrarax,lsuffix='',rsuffix='intra')
             #fullrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-totalrax.csv')
@@ -158,7 +158,7 @@ def prep_DD_uni1(u,PD,DD):
     u.atom_two.loc[:,'molecule0'] = u.atom_two.atom0.map(u.atom['molecule']).astype(int)
     u.atom_two.loc[:,'molecule1'] = u.atom_two.atom1.map(u.atom['molecule']).astype(int)
     u.atom_two.loc[:,'frame'] = u.atom_two.atom0.map(u.atom['frame']).astype(int)
-    u.atom_two.loc[:,'time'] = u.atom_two['frame']*PD.timestep*PD.md_print_freq
+    u.atom_two.loc[:,'time'] = u.atom_two['frame']*PD.timestep
     u.atom_two.loc[:,'symbol0'] = u.atom_two.atom0.map(u.atom['symbol'])
     u.atom_two.loc[:,'symbol1'] = u.atom_two.atom1.map(u.atom['symbol'])
     u.atom_two.loc[:,'label0'] = u.atom_two.atom0.map(u.atom['label']).astype(int)

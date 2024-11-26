@@ -375,17 +375,17 @@ def mol_fixed_coord(mol,mol_type,**kwargs):
         if key == 'methyl_indeces':
             methyl_indeces = value
     
-    if mol_type.casefold()=="acetonitrile":
-        CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
-        z = CN/la.norm(CN)
-        CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
-        x = plane_norm(z,CH)
-        #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
-        y = plane_norm(z,x)
-        #print(x,y,z)
-        return np.array([x,y,z]).T
+    #if mol_type.casefold()=="acetonitrile":
+    #    CN = mol[(mol['mol-atom_index0'] == 0) & (mol['mol-atom_index1'] == 64)][['dx','dy','dz']].values.astype(float)[0]
+    #    z = CN/la.norm(CN)
+    #    CH = mol[(mol['mol-atom_index0']==0) & (mol['mol-atom_index1']==96)][['dx','dy','dz']].values.astype(float)[0]
+    #    x = plane_norm(z,CH)
+    #    #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
+    #    y = plane_norm(z,x)
+    #    #print(x,y,z)
+    #    return np.array([x,y,z]).T
     
-    elif mol_type.casefold()=="methane":
+    if mol_type.casefold()=="methane":
         z = mol.iloc[0][['dx','dy','dz']].values.astype(float)/la.norm(mol.iloc[0][['dx','dy','dz']].values.astype(float))
         x = plane_norm(z,mol.iloc[1][['dx','dy','dz']].values.astype(float))
         #x = mol.iloc[2][['dx','dy','dz']].values.astype(float)
