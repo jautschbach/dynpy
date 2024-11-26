@@ -9,11 +9,11 @@ from scipy.integrate import cumtrapz
 from numba import vectorize, jit
 import os
 import sys
-import seaborn as sns
-rc = {'legend.frameon': True, 'legend.fancybox': True, 'patch.facecolor': 'white', 'patch.edgecolor': 'black',
-       'axes.formatter.useoffset': False, 'text.usetex': True, 'font.weight': 'bold', 'mathtext.fontset': 'stix'}
-sns.set(context='poster', style='white', font_scale=1.7, font='serif', rc=rc)
-sns.set_style("ticks")
+#import seaborn as sns
+#rc = {'legend.frameon': True, 'legend.fancybox': True, 'patch.facecolor': 'white', 'patch.edgecolor': 'black',
+#       'axes.formatter.useoffset': False, 'text.usetex': True, 'font.weight': 'bold', 'mathtext.fontset': 'stix'}
+#sns.set(context='poster', style='white', font_scale=1.7, font='serif', rc=rc)
+#sns.set_style("ticks")
 # import exa
 # import exatomic
 # from exatomic import qe
@@ -29,23 +29,26 @@ def QR_module_main(QR,label=None):
     rawdf = read_efg_data(QR.data_set,dtype={'system':'category','traj':'i8','frame':'i8','time':'f8','label':'i8','symbol':'category','Vxx':'f8','Vxy':'f8','Vxz':'f8','Vyx':'f8','Vyy':'f8','Vyz':'f8','Vzx':'f8','Vzy':'f8','Vzz':'f8','V11':'f8','V22':'f8','V33':'f8','eta':'f8'})
     symbol = "".join([char for char in QR.analyte if char.isalpha()])
     
-    if QR.multiple_trajectories == False:
-        rawdf['traj'] = 1
-    if QR.index_is_frame == True:
-        rawdf['frame'] = rawdf.index.values
-        rawdf['time'] = rawdf['frame']*QR.timestep
-        rawdf['label'] = 1 
-        #print("".join([c for c in QR.analyte if c.isalpha()]))
-        rawdf['symbol'] = "".join([c for c in QR.analyte if c.isalpha()])
-        rawdf['symbol'] = rawdf['symbol'].astype('category')
+    #if QR.multiple_trajectories == False:
+    #    rawdf['traj'] = 1
+    #if QR.index_is_frame == True:
+    #    rawdf['frame'] = rawdf.index.values
+    #    rawdf['time'] = rawdf['frame']*QR.timestep
+    #    rawdf['label'] = 1 
+    #    #print("".join([c for c in QR.analyte if c.isalpha()]))
+    #    rawdf['symbol'] = "".join([c for c in QR.analyte if c.isalpha()])
+    #    rawdf['symbol'] = rawdf['symbol'].astype('category')
     ACFs = {}
     res = {}
-
-    for traj, df in rawdf.groupby('traj'):
+    grouped = rawdf.groupby('traj')
+    for traj, df in grouped:
+        if traj == 0:
+            continue
         #print(df.head().values)
         df = df.sort_values(by='time')
         df['frame'] = df['frame'] - df.frame.iloc[0]
         df['time'] = df['time'] - df.time.iloc[0]
+
         if label:
             #print(label)
             label = int(label)
@@ -87,7 +90,7 @@ def QR_module_main(QR,label=None):
     acfs = pd.concat(ACFs)
     system = QR.data_set.split('.csv')[0]
     all_rax.to_csv(system+"-"+symbol+"-relax.csv",index_label="traj")
-    acfs.to_csv(system+"-"+symbol+"-acfs.csv",index_label="traj")
+    acfs.to_csv(system+"-"+symbol+"-acfs.csv",index=False)
     print("Results written to "+system+"-"+symbol+"-relax.csv")
     return(all_rax, acfs)
     print("Done")
