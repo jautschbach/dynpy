@@ -2,7 +2,6 @@
 *swp
 *pyc
 __*
-notebooks/
-trajectories/
-example-data/
+dynpy-examples/
+structure_dynamics.py
 *ipynb
