@@ -54,7 +54,7 @@ def QR_module_main(QR,label=None):
             label = int(label)
             adf = df.groupby('label').get_group(label)
         else:
-            adf = df.groupby('symbol').get_group(symbol)
+            adf = df.groupby('symbol', observed=True).get_group(symbol)
 
         spatial = cart_to_spatial(adf,pass_columns=['traj','system'])
         acfs = spatial.groupby('label').apply(correlate, pass_columns=['system','symbol'])
