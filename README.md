@@ -36,6 +36,7 @@ we would welcome a bug report with a minimal use case to reproduce it.
     - numba
     - networkx
     - datetime
+    - psutil
     
     Note, to update all conda packages:
     
@@ -54,20 +55,20 @@ The example system is a CPMD simulation of aqueous Iodide from Quantum Espresso.
 
 To generate snapshots (nearest neighbor clusters and full periodic) and corresponding EFG inputs (ADF and QE-PAW):
 
-	`python dynpy.py --inputs dynpy_EFG_inputs_from_MD.py`
+	`python -m dynpy --inputs dynpy_EFG_inputs_from_MD.py`
 
 Input parameters and descriptions are found in the input file dynpy_EFG_inputs_from_MD.py. MD trajectory files and subsequently generated EFG inputs/outputs must be in top-level directories named '01','02',..'XX'.
 Directory 'pre-computed-EFGs' exemplifies required directory structure for snapshot EFG inputs/outputs. Running the code above will generate inputs in directory ./'01' following this convention.
 
 To extract EFG data from packaged pre-computed EFGs, run the following:
 
-	`python dynpy.py --parse-efgs dynpy_parse_efgs.py`
+	`python -m dynpy --parse-efgs dynpy_parse_efgs.py`
 
 This will write raw EFG time series data to .csv file.
 
 To calculate autocorrelation functions and relaxation rates from EFGs:
 	
-	`python dynpy.py --Qrelax dynpy_qrax_params.py`
+	`python -m dynpy --Qrelax dynpy_qrax_params.py`
 
 Directions for remaining examples are in individual README files located in the corresponding directory in dynpy-examples (download from Zenodo repo above). Details on individual input parameters are provided as comments in the input parameter .py files (e.g. dynpy_EFG_inputs_from_MD.py)
 
