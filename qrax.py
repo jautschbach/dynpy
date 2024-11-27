@@ -17,7 +17,7 @@ import sys
 # import exa
 # import exatomic
 # from exatomic import qe
-import notebook as nb
+#import notebook as nb
 import math
 #import signal
 #from dynpy import signal_handler
