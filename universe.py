@@ -146,7 +146,7 @@ class Atom(pd.DataFrame):
         df['x'] *= 0.529177 #Length['au', units]
         df['y'] *= 0.529177 #Length['au', units]
         df['z'] *= 0.529177 #Length['au', units]
-        grps = df.groupby('frame')
+        grps = df.groupby('frame', observed=True)
         ret = ''
         formatter = {tag: '{:<5}'.format}
         stargs = {'columns': columns, 'header': False,
