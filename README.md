@@ -30,13 +30,6 @@ we would welcome a bug report with a minimal use case to reproduce it.
     - For Linux, then run the downloaded script:
      `./Miniconda3-latest-Linux-x86_64.sh`
 
-    - For jupyter notebook functionality:
-    
-     `conda install -c conda-forge notebook`
-     
-     `jupyter nbextension install --py --symlink --sys-prefix exatomic`
-     
-     `jupyter nbextension enable --py --sys-prefix exatomic`
 - Install the following packages via `conda install <package>`:
     - pandas
     - scipy
