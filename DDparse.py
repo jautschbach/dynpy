@@ -4,7 +4,7 @@ import numpy as np
 import scipy as sp
 from scipy import signal
 from scipy import constants
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 import math
 #import dask
 from ddrax import *

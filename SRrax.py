@@ -8,7 +8,7 @@ from numpy import linalg as la
 import scipy as sp
 from scipy import signal
 from scipy import constants
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from numba import vectorize, guvectorize, float64, complex128
 import os
 import sys
