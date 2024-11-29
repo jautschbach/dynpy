@@ -1,6 +1,6 @@
 import pandas as pd
 import string
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 from scipy import signal
@@ -17,7 +17,7 @@ import sys
 # import exa
 # import exatomic
 # from exatomic import qe
-import notebook as nb
+#import notebook as nb
 import math
 #import signal
 #from dynpy import signal_handler
@@ -54,7 +54,7 @@ def QR_module_main(QR,label=None):
             label = int(label)
             adf = df.groupby('label').get_group(label)
         else:
-            adf = df.groupby('symbol').get_group(symbol)
+            adf = df.groupby('symbol', observed=True).get_group(symbol)
 
         spatial = cart_to_spatial(adf,pass_columns=['traj','system'])
         acfs = spatial.groupby('label').apply(correlate, pass_columns=['system','symbol'])

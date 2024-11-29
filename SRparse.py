@@ -246,9 +246,9 @@ def compute_SR_rax(Jacf_mean,SR,PD):
     G = spec_dens(Jacf_mean,columns_in=['$J_{x}$','$J_{y}$','$J_{z}$'])
     #print(G)
     #print(Jacf_mean)
-    tx = G[0]/Jacf_mean.iloc[0]['$J_{x}$']
-    ty = G[1]/Jacf_mean.iloc[0]['$J_{y}$']
-    tz = G[2]/Jacf_mean.iloc[0]['$J_{z}$']
+    tx = G.iloc[0]/Jacf_mean.iloc[0]['$J_{x}$']
+    ty = G.iloc[1]/Jacf_mean.iloc[0]['$J_{y}$']
+    tz = G.iloc[2]/Jacf_mean.iloc[0]['$J_{z}$']
     #v1 = acf.loc[0,'$G_3$']#/41341.375**2
     #v2 = (acf.loc[0,'$G_1$'] + acf.loc[0,'$G_2$'])/2#/41341.375**2
     r = 2/3/(sp.constants.hbar**2)*(G.iloc[0]*C[0]**2 + G.iloc[1]*C[1]**2 + G.iloc[2]*C[2]**2) * (1e12)*(5.29177e-11)**4 * (1.66054e-27)**2

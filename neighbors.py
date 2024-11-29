@@ -66,7 +66,7 @@ def periodic_nearest_neighbors_by_atom(uni, source, a, sizes, **kwargs):
     if "label" not in uni.atom.columns:
         uni.atom['label'] = uni.atom.get_atom_labels()
     dct = defaultdict(list)
-    grps = uni.atom.groupby("frame")
+    grps = uni.atom.groupby("frame", observed=True)
     ntot = len(grps)
     #fp = FloatProgress(description="Slicing:")
     #display(fp)
@@ -135,7 +135,7 @@ def _create_super_universe(u, a):
     prjs = []
     fdxs = []
     #print(u.atom)
-    grps = u.atom.groupby("frame")
+    grps = u.atom.groupby("frame", observed=True)
     for fdx, atom in grps:
         adx, x, y, z, prj = _worker(atom.index.values.astype(np.int64),
                                     atom['x'].values.astype(np.float64),
@@ -238,7 +238,7 @@ def gen_inputs(dynpy_params):
                 paw_xyzs = paw_dir + "xyzs/"
                 if not os.path.isdir(paw_xyzs):
                     os.mkdir(paw_xyzs)
-            grouped = u.atom.groupby('frame')
+            grouped = u.atom.groupby('frame',observed=True)
             ntyp = len(u.atom.symbol.unique())
 
             for i, (frame,group) in enumerate(grouped):
