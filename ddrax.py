@@ -36,9 +36,9 @@ def R2_2(r):
     return V_1(r)**2
 
 def X(r):
-    return(r['dr']*np.sin(r[r'$\theta$'])*np.cos(r['$\phi$']))
+    return(r['dr']*np.sin(r[r'$\theta$'])*np.cos(r[r'$\phi$']))
 def Y(r):
-    return(r['dr']*np.sin(r[r'$\theta$'])*np.sin(r['$\phi$']))
+    return(r['dr']*np.sin(r[r'$\theta$'])*np.sin(r[r'$\phi$']))
 def Z(r):
     return(r['dr']*np.cos(r[r'$\theta$']))
 
@@ -57,7 +57,7 @@ def cart_to_spherical(atom_two):
     return pd.DataFrame.from_dict({"frame":atom_two['frame'], "time":atom_two['time'],"symbol0":atom_two['symbol0'],
                                    "symbol1":atom_two['symbol1'],"label0":atom_two['label0'], "label1":atom_two['label1'],
                                    "molecule0":atom_two['molecule0'], "molecule1":atom_two['molecule1'],
-                                   r"$\theta$":atom_two.apply(Theta, axis=1),"$\phi$":atom_two.apply(Phi, axis=1),
+                                   r"$\theta$":atom_two.apply(Theta, axis=1),r"$\phi$":atom_two.apply(Phi, axis=1),
                                    "dr":atom_two['dr']})
 
 def spherical_to_cart(spherical):
@@ -127,7 +127,7 @@ def cart_to_dipolar_from_df(atom_two):
 
 
 def dipolar_var(DD,symbol='H',columns_in=['$F_{2,0}$', '$F_{2,1}$', '$F_{2,2}$'],
-              columns_out=['$\langle F^{2}_0\\rangle$', '$\langle F^{2}_1\\rangle$', '$\langle F^{2}_2\\rangle$']):
+              columns_out=[r'$\langle F^{2}_0\rangle$', r'$\langle F^{2}_1\rangle$', r'$\langle F^{2}_2\rangle$']):
     s = nuc_df.loc['I',symbol]
     gamma = nuc_df.loc['gamma',symbol]
     C_d = (sp.constants.mu_0/(4*sp.constants.pi))**2*(gamma**4)*(constants.hbar**2)
@@ -180,7 +180,7 @@ def spec_dens(acf):
     J0 = fourier_T(acf['$G_{2,0}$'])
     J1 = fourier_T(acf['$G_{2,1}$'])
     J2 = fourier_T(acf['$G_{2,2}$'])
-    Jdf = pd.DataFrame({'$\omega$':freq, '$log(\omega)$':np.log10(freq), '$\omega^{\\frac{1}{2}}$':np.sqrt(freq), '$J_{0}(\omega)$':J0, '$J_{1}(\omega)$':J1, '$J_{2}(\omega)$':J2})
+    Jdf = pd.DataFrame({r'$\omega$':freq, r'$log(\omega)$':np.log10(freq), r'$\omega^{\\frac{1}{2}}$':np.sqrt(freq), r'$J_{0}(\omega)$':J0, r'$J_{1}(\omega)$':J1, r'$J_{2}(\omega)$':J2})
     return Jdf
 
 def spec_dens_extr_narr(acf,dt=None,columns_in=['$G_{2,0}$', '$G_{2,1}$', '$G_{2,2}$'],columns_out=['$j_{2,0}$', '$j_{2,1}$', '$j_{2,2}$'], cutoff=False, cutoff_tol=1e-3):
@@ -197,7 +197,7 @@ def spec_dens_extr_narr(acf,dt=None,columns_in=['$G_{2,0}$', '$G_{2,1}$', '$G_{2
                         break
         #print(bounds)  
                
-        g = 2*acf.iloc[:bounds[l]][columns_in].apply(sp.integrate.simps,x=acf.iloc[:bounds[l]]['time'])
+        g = 2*acf.iloc[:bounds[l]][columns_in].apply(sp.integrate.simpson,x=acf.iloc[:bounds[l]]['time'])
         #g = pd.DataFrame([np.trapz(acf.iloc[:bounds[l]][m], x=acf.iloc[:bounds[l]]['time']) for l,m in enumerate(columns_in)]).transpose()
         #g.columns = columns_out
         #g['$g_{iso}$'] = np.mean([g[m] for m in columns_out])
@@ -205,19 +205,19 @@ def spec_dens_extr_narr(acf,dt=None,columns_in=['$G_{2,0}$', '$G_{2,1}$', '$G_{2
         
     else:
         if dt:
-            g = 2*acf[columns_in].apply(sp.integrate.simps, dx=dt)
+            g = 2*acf[columns_in].apply(sp.integrate.simpson, dx=dt)
         else:
-            g = 2*acf[columns_in].apply(sp.integrate.simps, x=acf['time'])
+            g = 2*acf[columns_in].apply(sp.integrate.simpson, x=acf['time'])
         
     g.index = columns_out
-    g['$\langle F^{2}_{0}\\rangle$'] = acf.iloc[0]['$G_{2,0}$']
-    g['$\langle F^{2}_{1}\\rangle$'] = acf.iloc[0]['$G_{2,1}$']
-    g['$\langle F^{2}_{2}\\rangle$'] = acf.iloc[0]['$G_{2,2}$']
-    g['$\langle F(0)^{2}\\rangle$'] = (g['$\langle F^{2}_{1}\\rangle$']+g['$\langle F^{2}_{2}\\rangle$'])/2
-    g['$\\tau_{0}$'] = g['$j_{2,0}$']/g['$\langle F^{2}_{0}\\rangle$']
-    g['$\\tau_{1}$'] = g['$j_{2,1}$']/g['$\langle F^{2}_{1}\\rangle$']
-    g['$\\tau_{2}$'] = g['$j_{2,2}$']/g['$\langle F^{2}_{2}\\rangle$']
-    g['$\\tau_{c}$'] =(g['$\\tau_{1}$']+g['$\\tau_{2}$'])/2
+    g[r'$\langle F^{2}_{0}\rangle$'] = acf.iloc[0]['$G_{2,0}$']
+    g[r'$\langle F^{2}_{1}\rangle$'] = acf.iloc[0]['$G_{2,1}$']
+    g[r'$\langle F^{2}_{2}\rangle$'] = acf.iloc[0]['$G_{2,2}$']
+    g[r'$\langle F(0)^{2}\rangle$'] = (g[r'$\langle F^{2}_{1}\rangle$']+g[r'$\langle F^{2}_{2}\rangle$'])/2
+    g[r'$\tau_{0}$'] = g['$j_{2,0}$']/g[r'$\langle F^{2}_{0}\rangle$']
+    g[r'$\tau_{1}$'] = g['$j_{2,1}$']/g[r'$\langle F^{2}_{1}\rangle$']
+    g[r'$\tau_{2}$'] = g['$j_{2,2}$']/g[r'$\langle F^{2}_{2}\rangle$']
+    g[r'$\tau_{c}$'] =(g[r'$\tau_{1}$']+g[r'$\tau_{2}$'])/2
     
     return g
 
@@ -243,22 +243,22 @@ def dipolar(spec_dens,symbol1,symbol2='H',extr_narr=True,single_J=False,larmor_f
         #j2 = spec_dens['$j_{2,2}$']
         j0 = j1 = j2 = spec_dens[['$j_{2,0}$','$j_{2,1}$','$j_{2,2}$']].mean()
         tc = spec_dens['$\\tau_{c}$']
-        f = C_d*s_const*au_m**(-6)*spec_dens['$\langle F^{2}_{0}\\rangle$']
+        f = C_d*s_const*au_m**(-6)*spec_dens[r'$\langle F^{2}_{0}\rangle$']
         zf = None
     else:
-        m0 = (np.real(J.iloc[2]['$J_{0}(\omega)$']) - np.real(J.iloc[1]['$J_{0}(\omega)$']))/(np.real(J.iloc[2]['$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1]['$\omega^{\\frac{1}{2}}$']))
-        b0 = np.real(J.iloc[2]['$J_{0}(\omega)$']) - m0*np.real(J.iloc[2]['$\omega^{\\frac{1}{2}}$'])
+        m0 = (np.real(J.iloc[2][r'$J_{0}(\omega)$']) - np.real(J.iloc[1][r'$J_{0}(\omega)$']))/(np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1][r'$\omega^{\\frac{1}{2}}$']))
+        b0 = np.real(J.iloc[2][r'$J_{0}(\omega)$']) - m0*np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$'])
         j0 = b0 - m0*np.sqrt(omega_0)
         j02 = b0 - m0*np.sqrt(2*omega_0)
         
         zf = C_d*s_const*(j0+(4*j02))*au_m**(-6)*1e-12
         
-        m1 = (np.real(J.iloc[2]['$J_{1}(\omega)$']) - np.real(J.iloc[1]['$J_{1}(\omega)$']))/(np.real(J.iloc[2]['$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1]['$\omega^{\\frac{1}{2}}$']))
-        b1 = np.real(J.iloc[2]['$J_{1}(\omega)$']) - m1*np.real(J.iloc[2]['$\omega^{\\frac{1}{2}}$'])
+        m1 = (np.real(J.iloc[2][r'$J_{1}(\omega)$']) - np.real(J.iloc[1][r'$J_{1}(\omega)$']))/(np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1][r'$\omega^{\\frac{1}{2}}$']))
+        b1 = np.real(J.iloc[2][r'$J_{1}(\omega)$']) - m1*np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$'])
         j1 = b1 - m1*np.sqrt(omega_0)
         
-        m2 = (np.real(J.iloc[2]['$J_{2}(\omega)$']) - np.real(J.iloc[1]['$J_{2}(\omega)$']))/(np.real(J.iloc[2]['$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1]['$\omega^{\\frac{1}{2}}$']))
-        b2 = np.real(J.iloc[2]['$J_{2}(\omega)$']) - m2*np.real(J.iloc[2]['$\omega^{\\frac{1}{2}}$'])
+        m2 = (np.real(J.iloc[2][r'$J_{2}(\omega)$']) - np.real(J.iloc[1][r'$J_{2}(\omega)$']))/(np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1][r'$\omega^{\\frac{1}{2}}$']))
+        b2 = np.real(J.iloc[2][r'$J_{2}(\omega)$']) - m2*np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$'])
         j2 = b2 - m2*np.sqrt(2*omega_0)
         
         #j0 = spec_dens.iloc[0]['$J_{0}(\omega)$']
@@ -319,7 +319,7 @@ def trapzvar(var,width):
     #return res
     return width/2*(2*np.sum(var[1:-1]) + var[0] + var[-1])
 
-def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=['$\sigma_{2,-2}$', '$\sigma_{2,-1}$', '$\sigma_{2,0}$', '$\sigma_{2,1}$', '$\sigma_{2,2}$']):
+def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=[r'$\sigma_{2,-2}$', r'$\sigma_{2,-1}$', r'$\sigma_{2,0}$', r'$\sigma_{2,1}$', r'$\sigma_{2,2}$']):
     V = acf[columns_in].iloc[0]
     V.index = columns_out
     V[r'$\langle V(0)^2\rangle$'] = V.sum()
@@ -328,7 +328,7 @@ def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{
     return V
 
 def correlation_time(spec_dens,norm):
-    tau = pd.DataFrame.from_dict({r'$\tau_{2,'+str(m)+'}$':spec_dens['$g_{2,'+str(m)+'}$']/norm['$\sigma_{2,'+str(m)+'}$'] for m in range(-2,3)})
+    tau = pd.DataFrame.from_dict({r'$\tau_{2,'+str(m)+'}$':spec_dens['$g_{2,'+str(m)+'}$']/norm[r'$\sigma_{2,'+str(m)+'}$'] for m in range(-2,3)})
     tau[r'$\tau_{c}$'] = spec_dens['$g_{iso}$']*5/norm[r'$\langle V(0)^2\rangle$']
     tau['symbol'] = spec_dens['symbol']
     return tau
@@ -409,8 +409,8 @@ def HM(n,sigma,D,b,g,sym='H',returnI=False):
     g.loc[:,'g1'] = g.loc[:,'$g(r)$']*(sigma/g.index)**2
     g.loc[:,'g2'] = g.loc[:,'$g(r)$']*(sigma/g.index)**4
 
-    I1 = (1/sigma)*sp.integrate.simps(g.g1,x=g.index)
-    I2 = (1/sigma)*sp.integrate.simps(g.g2,x=g.index)
+    I1 = (1/sigma)*sp.integrate.simpson(g.g1,x=g.index)
+    I2 = (1/sigma)*sp.integrate.simpson(g.g2,x=g.index)
 
     II = 5*I1 - 3*I2
 
