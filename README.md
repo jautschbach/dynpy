@@ -30,12 +30,15 @@ we would welcome a bug report with a minimal use case to reproduce it.
     - For Linux, then run the downloaded script:
      `./Miniconda3-latest-Linux-x86_64.sh`
 
+- The current package is tested with python version 3.12.7. To ensure compatibility with dependencies:
+  
+  	conda install python=3.12.7
+
 - Install the following packages via `conda install <package>`:
     - pandas
     - scipy
     - numba
     - networkx
-    - datetime
     - psutil
     
     Note, to update all conda packages:

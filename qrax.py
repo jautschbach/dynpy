@@ -73,7 +73,7 @@ def QR_module_main(QR,label=None):
         t = correlation_time(g,v)
         rax = relaxation(g,QR.analyte)
         rax['$\\tau_{c}$'] = t['$\\tau_{c}$']
-        rax['$\\langle V(0)^2\\rangle$'] = v['$\\langle V(0)^2\\rangle$']
+        rax['$\\langle V(0)^2\rangle$'] = v['$\\langle V(0)^2\rangle$']
 
         res[traj] = rax
 
@@ -181,7 +181,7 @@ def spectral_dens(acf,dt=None,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$
                         break
         #print(bounds)
 
-        g = acf.iloc[:bounds[l]][columns_in].apply(sp.integrate.simps,x=acf.iloc[:bounds[l]]['time'])
+        g = acf.iloc[:bounds[l]][columns_in].apply(sp.integrate.simpson,x=acf.iloc[:bounds[l]]['time'])
         #g = pd.DataFrame([np.trapz(acf.iloc[:bounds[l]][m], x=acf.iloc[:bounds[l]]['time']) for l,m in enumerate(columns_in)]).transpose()
         #g.columns = columns_out
         #g['$g_{iso}$'] = np.mean([g[m] for m in columns_out])
@@ -190,9 +190,9 @@ def spectral_dens(acf,dt=None,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$
 
     else:
         if dt:
-            g = acf[columns_in].apply(sp.integrate.simps, dx=dt)
+            g = acf[columns_in].apply(sp.integrate.simpson, dx=dt)
         else:
-            g = acf[columns_in].apply(sp.integrate.simps, x=acf['time'])
+            g = acf[columns_in].apply(sp.integrate.simpson, x=acf['time'])
 
     g.index = columns_out
     g['$g_{iso}$'] = g.mean()
@@ -200,7 +200,7 @@ def spectral_dens(acf,dt=None,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$
 
     return g
 
-def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=['$\sigma_{2,-2}$', '$\sigma_{2,-1}$', '$\sigma_{2,0}$', '$\sigma_{2,1}$', '$\sigma_{2,2}$']):
+def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$'],columns_out=[r'$\sigma_{2,-2}$', r'$\sigma_{2,-1}$', r'$\sigma_{2,0}$', r'$\sigma_{2,1}$', r'$\sigma_{2,2}$']):
     V = acf[columns_in].iloc[0]
     V.index = columns_out
     V[r'$\langle V(0)^2\rangle$'] = V.values.sum()
@@ -210,7 +210,7 @@ def normal_factor(acf,columns_in=['$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{
 
 def correlation_time(spec_dens,norm):
     #print(norm.values)
-    tau = pd.DataFrame.from_dict({r'$\tau_{2,'+str(m)+'}$':[spec_dens['$g_{2,'+str(m)+'}$']/norm['$\sigma_{2,'+str(m)+'}$']] for m in range(-2,3)})
+    tau = pd.DataFrame.from_dict({r'$\tau_{2,'+str(m)+'}$':[spec_dens['$g_{2,'+str(m)+'}$']/norm[r'$\sigma_{2,'+str(m)+'}$']] for m in range(-2,3)})
     tau[r'$\tau_{c}$'] = spec_dens['$g_{iso}$']*5/norm[r'$\langle V(0)^2\rangle$']
     tau['symbol'] = spec_dens['symbol']
     return tau

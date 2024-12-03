@@ -573,7 +573,7 @@ def adiff(df):
     return df
 
 def spec_dens(acf,columns_in=['$G$']):
-    j = acf[columns_in].apply(sp.integrate.simps, x=acf['time'])
+    j = acf[columns_in].apply(sp.integrate.simpson, x=acf['time'])
     #print(j,acf.iloc[0]['$G$'])
     #tau = j/acf.iloc[0]['$G$']
     return j
