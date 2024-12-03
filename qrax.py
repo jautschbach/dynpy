@@ -73,7 +73,7 @@ def QR_module_main(QR,label=None):
         t = correlation_time(g,v)
         rax = relaxation(g,QR.analyte)
         rax['$\\tau_{c}$'] = t['$\\tau_{c}$']
-        rax['$\\langle V(0)^2\rangle$'] = v['$\\langle V(0)^2\rangle$']
+        rax[r'$\langle V(0)^2\rangle$'] = v[r'$\langle V(0)^2\rangle$']
 
         res[traj] = rax
 
