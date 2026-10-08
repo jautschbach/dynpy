@@ -80,3 +80,13 @@ Interactive use of this code along with plotting examples can be found in `./not
 To start up a jupyter notebook kernel, from a terminal enter the notebooks directory and type:
 `jupyter-notebook`
 If this does not automatically open your browser, open your internet browser and navigate to the 'localhost' address shown in the terminal messages.
+
+# Updates
+On 2026-10-08, Prof. Luciano Vidal sent us updated code that fixes recent
+incompatibilities with the pandas library. Luciano also fixed two bugs in the
+dipolar relacation code. One is related to the units in which the variance
+is reported, and the other applies a factor of 1/2 to the resulting correlation
+time. The relaxation rates produced by the code remain un-altered.
+Commit 83afe6e06bba41626a80aa84c55d8d2e66c38464
+The following commit is only for the update of this README.
+
