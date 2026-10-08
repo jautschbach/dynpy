@@ -213,11 +213,18 @@ def spec_dens_extr_narr(acf,dt=None,columns_in=['$G_{2,0}$', '$G_{2,1}$', '$G_{2
     g[r'$\langle F^{2}_{0}\rangle$'] = acf.iloc[0]['$G_{2,0}$']
     g[r'$\langle F^{2}_{1}\rangle$'] = acf.iloc[0]['$G_{2,1}$']
     g[r'$\langle F^{2}_{2}\rangle$'] = acf.iloc[0]['$G_{2,2}$']
-    g[r'$\langle F(0)^{2}\rangle$'] = (g[r'$\langle F^{2}_{1}\rangle$']+g[r'$\langle F^{2}_{2}\rangle$'])/2
-    g[r'$\tau_{0}$'] = g['$j_{2,0}$']/g[r'$\langle F^{2}_{0}\rangle$']
-    g[r'$\tau_{1}$'] = g['$j_{2,1}$']/g[r'$\langle F^{2}_{1}\rangle$']
-    g[r'$\tau_{2}$'] = g['$j_{2,2}$']/g[r'$\langle F^{2}_{2}\rangle$']
-    g[r'$\tau_{c}$'] =(g[r'$\tau_{1}$']+g[r'$\tau_{2}$'])/2
+# {begin VIDAL MOD}
+#    g[r'$\langle F(0)^{2}\rangle$'] = (g[r'$\langle F^{2}_{1}\rangle$']+g[r'$\langle F^{2}_{2}\rangle$'])/2
+#    g[r'$\tau_{0}$'] = g['$j_{2,0}$']/g[r'$\langle F^{2}_{0}\rangle$']
+#    g[r'$\tau_{1}$'] = g['$j_{2,1}$']/g[r'$\langle F^{2}_{1}\rangle$']
+#    g[r'$\tau_{2}$'] = g['$j_{2,2}$']/g[r'$\langle F^{2}_{2}\rangle$']
+#    g[r'$\tau_{c}$'] =(g[r'$\tau_{1}$']+g[r'$\tau_{2}$'])/2
+    g[r'$\langle F(0)^{2}\rangle$'] = (g[r'$\langle F^{2}_{1}\rangle$']+g[r'$\langle F^{2}_{2}\rangle$']+g[r'$\langle F^{2}_{0}\rangle$'])/3
+    g[r'$\tau_{0}$'] = g['$j_{2,0}$']/g[r'$\langle F^{2}_{0}\rangle$']/2
+    g[r'$\tau_{1}$'] = g['$j_{2,1}$']/g[r'$\langle F^{2}_{1}\rangle$']/2
+    g[r'$\tau_{2}$'] = g['$j_{2,2}$']/g[r'$\langle F^{2}_{2}\rangle$']/2
+    g[r'$\tau_{c}$'] =(g[r'$\tau_{1}$']+g[r'$\tau_{2}$']+g[r'$\tau_{0}$'])/3
+# {end VIDAL MOD}
     
     return g
 
@@ -243,7 +250,10 @@ def dipolar(spec_dens,symbol1,symbol2='H',extr_narr=True,single_J=False,larmor_f
         #j2 = spec_dens['$j_{2,2}$']
         j0 = j1 = j2 = spec_dens[['$j_{2,0}$','$j_{2,1}$','$j_{2,2}$']].mean()
         tc = spec_dens['$\\tau_{c}$']
-        f = C_d*s_const*au_m**(-6)*spec_dens[r'$\langle F^{2}_{0}\rangle$']
+# {begin VIDAL MOD}
+#        f = C_d*s_const*au_m**(-6)*spec_dens[r'$\langle F^{2}_{0}\rangle$']
+        f = spec_dens[r'$\langle F(0)^{2}\rangle$']
+# {end VIDAL MOD}
         zf = None
     else:
         m0 = (np.real(J.iloc[2][r'$J_{0}(\omega)$']) - np.real(J.iloc[1][r'$J_{0}(\omega)$']))/(np.real(J.iloc[2][r'$\omega^{\\frac{1}{2}}$']) - np.real(J.iloc[1][r'$\omega^{\\frac{1}{2}}$']))
@@ -274,7 +284,7 @@ def dipolar(spec_dens,symbol1,symbol2='H',extr_narr=True,single_J=False,larmor_f
     return R, tc, f
 
 def wiener_khinchin(f):
-    #“Wiener-Khinchin theorem”
+    #?Wiener-Khinchin theorem?
     real = pd.Series(np.real(f)).interpolate()
     imag = pd.Series(np.imag(f)).interpolate()
     f = pd.Series([complex(r,i) for r,i in zip(real,imag)])

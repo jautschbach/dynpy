@@ -123,7 +123,10 @@ def _create():
     """Globally called function for creating the isotope/element API."""
     def creator(group):
         """Helper function applied to each symbol group of the raw isotope table."""
-        symbol = group['symbol'].values[0]
+# {begin VIDAL MOD}
+#        symbol = group['symbol'].values[0]
+        symbol = group.name
+# {end VIDAL MOD}
         try:    # Ghosts and custom atoms don't necessarily have an abundance fraction
             mass = (group['mass']*group['af']).sum()
             afm = group['af'].sum()
@@ -140,9 +143,30 @@ def _create():
         color = group['color'].values[0]
         name = group['name'].values[0]
         ele = Element(symbol, name, mass, znum, cov_radius, van_radius, color)
-        # Attached isotopes
-        for tope in group.apply(lambda s: Isotope(*s.tolist()), axis=1):
+# {begin VIDAL MOD}
+#        # Attached isotopes
+#        for tope in group.apply(lambda s: Isotope(*s.tolist()), axis=1):
+#            setattr(ele, "_"+str(tope.A), tope)
+        for _, row in group.iterrows():
+            tope = Isotope(
+                anum=row['A'],             
+                znum=row['Z'],             
+                af=row['af'],
+                afu=row['afu'],
+                cov_radius=row['cov_radius'],
+                van_radius=row['van_radius'],
+                g=row['g'],
+                mass=row['mass'],
+                massu=row['massu'],
+                name=row['name'],
+                eneg=row['eneg'],
+                quad=row['quad'],
+                spin=row['spin'],
+                symbol=symbol,             
+                color=row['color']
+            )
             setattr(ele, "_"+str(tope.A), tope)
+# {end VIDAL MOD}
         return ele
 
     iso = _rj(_path)

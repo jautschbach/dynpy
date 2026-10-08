@@ -89,8 +89,17 @@ def DD_module_main(PD,DD):
             #interacf = interdd.reset_index().groupby(['label0','label1']).apply(correlate)
             #del interdd
             print("computing TCFs...")
-            acfs = dd.reset_index().groupby(['label0','label1']).apply(correlate)
-            
+# {begin VIDAL MOD}
+#            acfs = dd.reset_index().groupby(['label0','label1']).apply(correlate)
+            grouped_dfs = []
+            for keys, group in dd.reset_index().groupby(['label0', 'label1']):
+                group = group.copy()
+                group['label0'] = keys[0]
+                group['label1'] = keys[1]
+                res = correlate(group)
+                grouped_dfs.append(res)
+            acfs = pd.concat(grouped_dfs)
+# {end VIDAL MOD}
             del dd
             gc.collect()
             time3 = time.time()
@@ -122,14 +131,22 @@ def DD_module_main(PD,DD):
             rax,tc,F = dipolar(EN, symbol1=analyte_species,symbol2='1H')
             print("1/T1/nH = {r:.3e} Hz, tau_c = {t:.3e} ps, <F(0)^2> = {f:.3e} au^-6".format(r=rax,t=tc,f=F))
             print("For intramolecular contrib. in heteronuclear systems (e.g. C--H relaxation of 13C), multiply 1/T1/nH by number of bonded spins to obtain 1/T1. E.g. for C-13 in methyl group, nH=3")
-            res[traj] = [rax,tc,F]
+# {begin VIDAL MOD}
+#            res[traj] = [rax,tc,F]
+            if isinstance(res, pd.DataFrame):
+               res = {} 
+            res[str(traj)] = [rax, tc, F]
+
             #rax = fullrax.join(intrarax,lsuffix='',rsuffix='intra')
             #fullrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-totalrax.csv')
             #interrax.to_csv('/projects/academic/jochena/adamphil/projects/dipolar/Paesani/QM-01-0.04dt-interrax.csv')
             #intrarax.to_csv('/projects/academic/jochena/adamphil/projects/SR/water/gas-MD/01/NVE/TIP3P/DD-intra-rax.csv')
-       res_df = pd.DataFrame(res).T
+#       res_df = pd.DataFrame(res).T
+       res_df = pd.DataFrame.from_dict(res, orient='index')
+# {end VIDAL MOD}
        res_df.columns=["1/T1/nH","tau_c","<F(0)^2>"]
        res_df.to_csv(PD.traj_dir+'DD-results.csv')
+
 def prep_DD_uni1(u,PD,DD):
     try:
           dmax = DD.rmax

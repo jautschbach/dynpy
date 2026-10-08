@@ -243,9 +243,17 @@ def parse_xyz(traj_dir, sample_freq, md_print_freq, nat, start_prod=None, end_pr
     full_frames = list(itertools.chain.from_iterable(fframes))
     atom.loc[:,'frame']=full_frames
     #print(atom.tail())
-    atom.loc[:,'x'] = atom.loc[:,'x'].apply(d_to_e)/0.529177
-    atom.loc[:,'y'] = atom.loc[:,'y'].apply(d_to_e)/0.529177
-    atom.loc[:,'z'] = atom.loc[:,'z'].apply(d_to_e)/0.529177
+# {begin VIDAL MOD}
+#    atom.loc[:,'x'] = atom.loc[:,'x'].apply(d_to_e)/0.529177
+#    atom.loc[:,'y'] = atom.loc[:,'y'].apply(d_to_e)/0.529177
+#    atom.loc[:,'z'] = atom.loc[:,'z'].apply(d_to_e)/0.529177
+    x_converted = atom['x'].astype(object).apply(d_to_e) / 0.529177
+    y_converted = atom['y'].astype(object).apply(d_to_e) / 0.529177
+    z_converted = atom['z'].astype(object).apply(d_to_e) / 0.529177
+    atom['x'] = x_converted.astype(float)
+    atom['y'] = y_converted.astype(float)
+    atom['z'] = z_converted.astype(float)
+# {end VIDAL MOD}
     
     u = Universe(Atom(atom))
     #u.atom = atom
