@@ -1,90 +1,58 @@
-# This is the standard input file for setting extra paramters needed for initializing and parsing MD trajectories, generating clusters,  
+# This is the standard input file for setting extra paramters needed for parsing MD trajectories, generating clusters, writing inputs for snapshot properties calculations, parsing the output of those calculations, and finally calculating relaxation rates. This file is not for any particular calculation but rather serves as an example with a description provided for each input parameter.
 
 class ParseDynamics:
-   # MD_ENGINE = 'QE'
-   # traj_dir = './example-data/Iodide/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-   # start_prod = 30000 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-   # end_prod = 30100
-   # sample_freq = 10 #number of steps between sampled snapshots. Keep high for testing
-   # md_print_freq = 10
-   # timestep = 6.0*2.418884254e-5 #timestep of aiMD in picoseconds. May be any expression returning floating point value
-   # nat = 192
-   # symbols = ['I'] + ['H']*129 + ['O']*64 #Full list of element symbols in the order they appear in 'ATOMIC_SPECIES' block of QE MD input
-   # celldm = 24.269 #Simulation cell dimension in bohr. May be any expression returning floating point value
+    MD_ENGINE = 'QE' #Indicates the format of the MD trajectory data. Supported values are 'QE', 'Tinker', and 'xyz'.
+    traj_dir = './' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for examples)
+    trajs = ['01'] # List of trajectory directory names to parse as MD trajectories. Must have the format {'01'..'XX'}
+    start_prod = 4200 #MD step number to start sampling snapshots from. Enumerates the PRINTED FRAMES ONLY, not the original MD frame numbers if they are different. Inclusive, 1-indexed
+    end_prod = 4240  #MD step number to stop sampling snapshots. Enumerates the PRINTED FRAMES ONLY, not the original MD frame numbers if they are different. Inclusive, 1-indexed
+    sample_freq = 20 #number of steps between sampled snapshots.Enumerates the PRINTED FRAMES ONLY, not the original MD frame numbers if they are different.
+    md_print_freq = 10 #How many MD timesteps between prints in MD output. Needed for Tinker and xyz format output where MD frames are not explicitly printed
+    timestep = 6.0*2.418884254e-5 #timestep of MD in picoseconds. May be any expression returning floating point value
+    nat = 194  #Number of atoms per frame
+    symbols = ['I'] + ['H']*129 + ['O']*64 #Full list of element symbols in the order they appear in 'ATOMIC_SPECIES' block of QE MD input
+    celldm = 24.269 #Simulation cell dimension in bohr. May be any expression returning floating point value
     
-    #MD_ENGINE = 'QE'
-    #traj_dir = './example-data/QE/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-    #start_prod = 30000 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-    #end_prod = 32000
-    #sample_freq = 10 #number of steps between sampled snapshots. Keep high for testing
-    #md_print_freq = 10
-    #timestep = 6.0*2.418884254e-5 #timestep of aiMD in picoseconds. May be any expression returning floating point value
-    #nat = 192
-    #symbols = ['O','H','H']*64  #Full list of element symbols in the order they appear in 'ATOMIC_SPECIES' block of QE MD input
-    #celldm = 23.46 #Simulation cell dimension in bohr. May be any expression returning floating point value
 
-    MD_ENGINE = 'Tinker'
-    traj_dir = '../jerschow-trajectories/tinker/300K/'
-    trajs = ['01']
-    prefix = 'gpl'
-    #traj_dir = './example-data/tinker/water/vapor/101kpa/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-    #traj_dir = './example-data/tinker/water/' #Path to directory containing trajectory directories {01..XX} ('./example-data/' for example, or './trajectories/' for default space of your own traj data)
-    ntraj = 1 #number of trajectories to parse
-    nat = 896
-    #nat = 1408
-    start_prod = 1 #MD step number to start sampling snapshots from. For the default setup and equilibration used in this package, 42000 (~6ps) is recommended
-    end_prod = 500
-    md_print_freq = 5
-    sample_freq = 1 #number of steps between sampled snapshots. Keep high for testing
-    celldm = 22.32/0.529177 #gpl #Simulation cell dimension in bohr. May be any expression returning floating point value
-    #celldm = 25.37/0.529177 #dma
-    timestep = 0.001 #timestep of MD in picoseconds. May be any expression returning floating point value
-    #parse_vel=True
+class Snapshots:  #Input parameters file for neighbors.py. Used for parsing QE aiMD, making clusters, and writing inputs for ADF/QE-GIPAW
+    write_ADF = True #If True, write input files for ADF EFG calcs
+    write_GIPAW = False #If True, write input files for QE-PAW EFG calcs
+    analyte_label = 'I' #Element symbol for analyte nucleus. Should be redundant with nuc_symbol and if not provided will be inferred from the latter
+    nuc_symbol = '127I' #Analyte symbol prepended with the proper atomic mass number of the isotope
+    solute_charge = -1 #Charge of the solute/analyte
+    formal_charges = {'H':2,'O':-2} #Formal charges of other atoms in the system for computing overall charge of clusters
+    write_xyzs = True #If True, write set of xyz files of clusters used for ADF inputs
+    nn = 30 #Number of nearest neighbor solvent molecules desired for clusters
+    scratch = "/scratch/space/for/EFG/calculations/" #Path for scratch space to use if running EFG calculations
+    skip_compute_neighbors = False #If True, write new ADF inputs from existing xyz data from previous run. Use only if .xyz files exist and you know they are computed correctly
+
+class ParseEFGs:
+    output_dir = './pre-computed-EFGs/' #Path to directory containing trajectory directories which must be named in the format {01..XX}
+    engine = 'ADF' #QM Engine that EFG outputs come from. Can be 'ADF','QE','CP2K'
+    prefix = 'I-ADF' # Simple prefix for naming output EFG data file
+    time_bw_frames = None #Optional parameter to provide the real-time step between the sampled frames. If not present or set to None, will attempt to read from comment in EFG input/output
 
 class SpinRotation:
-    mol_type = 'methyl'
-    nmol = 64
-    C_SR = [0,0,-20.23]
-    #C_SR = [-0.37401643,-0.33949459,-0.74248898]
-    #identifier = 'C(6)H(7)N(1)' #gpl
-    identifier = 'C(9)H(12)O(1)'
-    #methyl_indeces = [0,10,11,12,13] #Indeces of atoms that make up the methyl group of interest in the molecule, including the alpha carbon which must start the sequence.
-    global_momentum = False
-    methyl_indeces = [1,7,13,14,15] #dma-2
-    #methyl_indeces = [3,8,16,17,18] #dma-5
-    #Indexing is zero-based and is relative to a single molecular unit. All molecules in the system must have atoms ordered the same way!
-    #mol_plane_indeces = [0,1,5]
-    #mol_type = 'water'
-    #C_SR = [33.46,36.9377,35.546]
+    mol_type = 'methane' #Molecule type for which to compute 1H SR relaxation rate. Supported types are 'methane', 'water', 'acetonitrile', and 'methyl' for methyl groups.
+    nmol = 100 #Number of molecules to sample when computing angular velocities, correlation functions, and SR rate. Can be up to total number of molecules in the system but may be reduced for performance.
+    C_SR = [16.495,16.495,-1.875] #Principal components of SR tensor in the molecule-fixed coordinate system. Current values are for 1H in free methane. Units are kHz
+    #C_SR = [20.23,20.23,20.23] # 13C in methane
+    #C_SR = [36.9, 33.5, 35.5] #1H in water
+    #C_SR = [0.48124,0.48124,15.9531] #1H in acetonitrile
+
 
 class Quadrupolar:
-    data_set = '/mnt/e/Documents/Akimov-research/ml_efg_AGdensity_ntrain_250.csv'
-    analyte = '23Na'
+    data_set = './I-ADF-efg.csv'
+    analyte = '127I'
     multiple_trajectories = False
     timestep = 0.01015931
     index_is_frame = True
 
 
 class Dipolar:
-    #identifier = 'C(6)H(7)N(1)' #gpl
-    identifier = 'H(2)O(1)'
-    #analyte_label = 10
-    #analyte_species = '13C'
-    pair_type = 'inter'
-    rmax = 15
-
-class Snapshots:  #Input parameters file for neighbors.py. Used for parsing qe aiMD, making clusters, and writing inputs for ADF/QE-GIPAW
-    write_ADF = True #If True, write input files for ADF EFG calcs
-    write_GIPAW = False #If True, write input files for QE-PAW EFG calcs
-    analyte_label = 'I' #Element symbol for analyte nucleus. Should be redundant with nuc_symbol and if not provided will be inferred from the latter
-    nuc_symbol = '127I' #Analyte symbol prepended with the proper atomic mass number of the isotope
-    solute_charge = -1 #Charge of the solute/analyte
-    formal_charges = {'H':1,'O':-2}
-    write_xyzs = True #If True, write set of xyz files of clusters used for ADF inputs
-    nn = 30 #Number of nearest neighbor solvent molecules desired for clusters
-    scratch = '/gpfs/scratch' #Scratch space to use for EFG calculations
-    skip_compute_neighbors = False #If True, write new ADF inputs from existing xyz data from previous run. Use only if .xyz files exist and you know they are computed correctly
-
+    identifier = 'H(2)O(1)' #Molecular formula unit for molecule of interest in the format shown here
+    pair_type = 'all' #'intra','inter',or 'all' for intramolecular or intermolecular contributions separately or both simultaneously ('all')
+    rmax = 15 #Max distance in bohr for tracking 2-atom distances
 
 
 #In most cases, the following templates do not need to be changed
