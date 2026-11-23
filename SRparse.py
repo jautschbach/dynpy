@@ -80,7 +80,7 @@ def SR_module_main(PD,SR):
         #print("write ax,vel,mom data--- %03.2s seconds ---" % (time.time() - start_time))
         
         J_acfs = applyParallel(correlate,J.groupby('molecule_label'),columns_in=['x','y','z'],columns_out=['$J_{x}$','$J_{y}$','$J_{z}$'],pass_columns=['frame','molecule_label','molecule'])
-        Jacf_mean=J_acfs.groupby('frame').apply(np.mean, axis=0)
+        Jacf_mean=J_acfs.groupby('frame',as_index=False).apply(np.mean, axis=0)
         Jacf_mean['time']=Jacf_mean['frame']*PD.timestep
         time5 = time.time()
         print("parallel compute acfs                      --- {t:.2f} seconds ---".format(t = time5 - time4))

@@ -192,10 +192,12 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod, end_p
     fframes = [[frame]*nat for frame in frames]
     full_frames = list(itertools.chain.from_iterable(fframes))
     atom.loc[:,'frame']=full_frames
-    #print(atom.head())
-    atom.loc[:,'x'] = atom.loc[:,'x'].apply(d_to_e)/0.529177
-    atom.loc[:,'y'] = atom.loc[:,'y'].apply(d_to_e)/0.529177
-    atom.loc[:,'z'] = atom.loc[:,'z'].apply(d_to_e)/0.529177
+    x_converted = atom['x'].astype(object).apply(d_to_e) / 0.529177
+    y_converted = atom['y'].astype(object).apply(d_to_e) / 0.529177
+    z_converted = atom['z'].astype(object).apply(d_to_e) / 0.529177
+    atom['x'] = x_converted.astype(float)
+    atom['y'] = y_converted.astype(float)
+    atom['z'] = z_converted.astype(float)
     
     u = Universe(Atom(atom))
     #u.atom = atom
@@ -215,9 +217,12 @@ def parse_tinker_md(traj_dir, sample_freq, md_print_freq, nat, start_prod, end_p
         #print(velatom.head())
         velatom.loc[:,'symbol']=velatom.loc[:,'symbol'].apply(normsym)
         velatom.loc[:,'frame']=full_frames
-        velatom.loc[:,'x'] = velatom.loc[:,'x'].apply(d_to_e)/0.529177
-        velatom.loc[:,'y'] = velatom.loc[:,'y'].apply(d_to_e)/0.529177
-        velatom.loc[:,'z'] = velatom.loc[:,'z'].apply(d_to_e)/0.529177
+        x_converted = velatom['x'].astype(object).apply(d_to_e) / 0.529177
+        y_converted = velatom['y'].astype(object).apply(d_to_e) / 0.529177
+        z_converted = velatom['z'].astype(object).apply(d_to_e) / 0.529177
+        velatom['x'] = x_converted.astype(float)
+        velatom['y'] = y_converted.astype(float)
+        velatom['z'] = z_converted.astype(float)
         velu = Universe(Atom(velatom))
         #velu.atom = velatom
         velu.atom.loc[:,'label'] = velu.atom.get_atom_labels()

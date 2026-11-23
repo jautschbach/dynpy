@@ -57,7 +57,7 @@ def QR_module_main(QR,label=None):
             adf = df.groupby('symbol', observed=True).get_group(symbol)
 
         spatial = cart_to_spatial(adf,pass_columns=['traj','system'])
-        acfs = spatial.groupby('label').apply(correlate, pass_columns=['system','symbol'])
+        acfs = spatial.groupby('label', as_index=False)[spatial.columns].apply(correlate, pass_columns=['system','symbol'])
         #print(acfs)
         #print(acfs.dtypes)
         acf_mean = acfs[['frame','time','$f_{2,-2}$', '$f_{2,-1}$', '$f_{2,0}$', '$f_{2,1}$', '$f_{2,2}$']].groupby('frame').apply(np.mean,axis=0)

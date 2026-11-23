@@ -4,4 +4,4 @@
 __*
 dynpy-examples/
 structure_dynamics.py
-*ipynb
+.ipynb_checkpoints/
